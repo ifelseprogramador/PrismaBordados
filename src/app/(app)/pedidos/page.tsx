@@ -10,16 +10,52 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SearchBox } from "@/components/search-box";
+import { ActionLink } from "@/components/action-link";
+import { ListFilterBar, type FilterField } from "@/components/list-filter-bar";
 import { formatCents } from "@/core/money";
 import { formatDate } from "@/core/format";
-import { listPedidos, type PedidoStatusFilter } from "@/modules/pedidos/queries";
-import { PedidoStatusBadge } from "@/modules/pedidos/components/pedido-status-badge";
+import {
+  listPedidos,
+  PEDIDO_SORT_OPTIONS,
+  PEDIDOS_ABERTOS_STATUSES,
+  type PedidoSort,
+  type PedidoStatusFilter,
+} from "@/modules/pedidos/queries";
+import {
+  PedidoStatusBadge,
+  PEDIDO_STATUS_LABELS,
+} from "@/modules/pedidos/components/pedido-status-badge";
+
+/** Valor especial de `status` na URL (não é um valor real do enum) que
+ * representa o conjunto "em aberto" — o mesmo critério que os cards
+ * "Pedidos em aberto"/"Saldo a receber" do painel somam. Existe só para o
+ * link desses cards ter alguma coisa pra apontar
+ * (`/pedidos?status=aberto`); o filtro dropdown abaixo também oferece
+ * essa opção, não só os status individuais. */
+const ABERTO = "aberto";
 
 export default async function PedidosPage({ searchParams }: PageProps<"/pedidos">) {
-  const { q, status } = await searchParams;
+  const { q, status, sort } = await searchParams;
   const search = typeof q === "string" ? q : undefined;
-  const statusFilter = typeof status === "string" ? (status as PedidoStatusFilter) : undefined;
-  const pedidos = await listPedidos({ search, status: statusFilter });
+  const statusParam = typeof status === "string" ? status : undefined;
+  const sortParam = typeof sort === "string" ? (sort as PedidoSort) : undefined;
+
+  const pedidos = await listPedidos({
+    search,
+    sort: sortParam,
+    ...(statusParam === ABERTO
+      ? { statusIn: PEDIDOS_ABERTOS_STATUSES }
+      : { status: statusParam as PedidoStatusFilter | undefined }),
+  });
+
+  const statusFilter: FilterField = {
+    param: "status",
+    allLabel: "Todos os status",
+    options: [
+      { value: ABERTO, label: "Em aberto" },
+      ...Object.entries(PEDIDO_STATUS_LABELS).map(([value, label]) => ({ value, label })),
+    ],
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -34,7 +70,17 @@ export default async function PedidosPage({ searchParams }: PageProps<"/pedidos"
         </Button>
       </div>
 
-      <SearchBox placeholder="Buscar por cliente ou número..." />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SearchBox placeholder="Buscar por cliente ou número..." />
+        <ListFilterBar
+          filters={[statusFilter]}
+          sortOptions={Object.entries(PEDIDO_SORT_OPTIONS).map(([value, label]) => ({
+            value,
+            label,
+          }))}
+          defaultSort="number_desc"
+        />
+      </div>
 
       <Table>
         <TableHeader>
@@ -51,16 +97,16 @@ export default async function PedidosPage({ searchParams }: PageProps<"/pedidos"
           {pedidos.length === 0 && (
             <TableRow>
               <TableCell colSpan={6} className="text-muted-foreground text-center">
-                Nenhum pedido cadastrado ainda.
+                Nenhum pedido encontrado.
               </TableCell>
             </TableRow>
           )}
           {pedidos.map((pedido) => (
             <TableRow key={pedido.id} className="cursor-pointer">
               <TableCell>
-                <Link href={`/pedidos/${pedido.id}`} className="font-medium hover:underline">
+                <ActionLink href={`/pedidos/${pedido.id}`} className="font-medium">
                   #{pedido.number}
-                </Link>
+                </ActionLink>
               </TableCell>
               <TableCell>{pedido.customerName}</TableCell>
               <TableCell>

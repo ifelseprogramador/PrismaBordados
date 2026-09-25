@@ -7,10 +7,14 @@ import type { ActionResult } from "@/core/action-result";
 import { catalogoBordadoItens } from "./schema";
 import { parseCatalogoBordadoItemFormData } from "./validation";
 
+export interface InsertResult extends ActionResult {
+  id?: string;
+}
+
 export async function createCatalogoBordadoItem(
   _prevState: ActionResult,
   formData: FormData,
-): Promise<ActionResult> {
+): Promise<InsertResult> {
   const { organizationId, log, withDb } = await withOrg();
 
   const parsed = parseCatalogoBordadoItemFormData(formData);
@@ -21,11 +25,16 @@ export async function createCatalogoBordadoItem(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  await withDb((tx) => tx.insert(catalogoBordadoItens).values({ ...parsed.data, organizationId }));
-  log.info("catalogo_bordado.criar.sucesso");
+  const [item] = await withDb((tx) =>
+    tx
+      .insert(catalogoBordadoItens)
+      .values({ ...parsed.data, organizationId })
+      .returning({ id: catalogoBordadoItens.id }),
+  );
+  log.info("catalogo_bordado.criar.sucesso", { itemId: item.id });
 
   revalidatePath("/catalogo-bordado");
-  return { ok: true };
+  return { ok: true, id: item.id };
 }
 
 export async function updateCatalogoBordadoItem(

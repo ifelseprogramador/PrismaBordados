@@ -10,12 +10,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SearchBox } from "@/components/search-box";
-import { listClientes } from "@/modules/clientes/queries";
+import { ActionLink } from "@/components/action-link";
+import { ListFilterBar } from "@/components/list-filter-bar";
+import { listClientes, CLIENTE_SORT_OPTIONS, type ClienteSort } from "@/modules/clientes/queries";
 
 export default async function ClientesPage({ searchParams }: PageProps<"/clientes">) {
-  const { q } = await searchParams;
+  const { q, sort } = await searchParams;
   const search = typeof q === "string" ? q : undefined;
-  const clientes = await listClientes(search);
+  const sortParam = typeof sort === "string" ? (sort as ClienteSort) : undefined;
+  const clientes = await listClientes({ search, sort: sortParam });
 
   return (
     <div className="flex flex-col gap-6">
@@ -30,7 +33,17 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
         </Button>
       </div>
 
-      <SearchBox placeholder="Buscar por nome ou telefone..." />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SearchBox placeholder="Buscar por nome ou telefone..." />
+        <ListFilterBar
+          filters={[]}
+          sortOptions={Object.entries(CLIENTE_SORT_OPTIONS).map(([value, label]) => ({
+            value,
+            label,
+          }))}
+          defaultSort="name_asc"
+        />
+      </div>
 
       <Table>
         <TableHeader>
@@ -50,8 +63,10 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
             </TableRow>
           )}
           {clientes.map((cliente) => (
-            <TableRow key={cliente.id}>
-              <TableCell className="font-medium">{cliente.name}</TableCell>
+            <TableRow key={cliente.id} className="cursor-pointer">
+              <TableCell className="font-medium">
+                <ActionLink href={`/clientes/${cliente.id}`}>{cliente.name}</ActionLink>
+              </TableCell>
               <TableCell>{cliente.phone}</TableCell>
               <TableCell>{cliente.document ?? "—"}</TableCell>
               <TableCell>{cliente.address ?? "—"}</TableCell>

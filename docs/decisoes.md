@@ -511,3 +511,73 @@ reescrito, rodando com usuários reais via Admin API; (2) um script
 descartável adicional (criado, rodado e apagado na mesma sessão) que
 criou 2 organizações e 2 usuários reais e confirmou que um não vê dados
 do outro, e que sem contexto de sessão nenhuma organização é visível.
+
+## 2026-09-25 — Testado no navegador de verdade: 4 bugs reais corrigidos
+
+Rodei o app de verdade (`npm run dev` + Playwright dirigindo um Chromium
+real, não só os testes automatizados) e o próprio usuário testou em
+paralelo. Isso achou problemas que nenhum teste unitário/integração pega:
+
+1. **`clientes`/`catalogo-bordado` sem ficha de detalhe** — as Server
+   Actions `updateCliente`/`deleteCliente` (e equivalentes de catálogo)
+   já existiam prontas desde a Fase 2, mas não havia nenhuma rota
+   `/clientes/[id]` nem link nenhum saindo da lista — criar um cliente
+   funcionava, mas não tinha como editar ou remover depois. Corrigido:
+   `ClienteForm`/`CatalogoItemForm` generalizados para criar E editar
+   (mesmo padrão `action` injetável do `CustomerForm` do mecano-erp,
+   com `key={registro?.updatedAt}`), páginas `[id]/page.tsx` novas com
+   `ConfirmDeleteButton`, e `createCliente`/`createCatalogoBordadoItem`
+   passaram a retornar o `id` criado para o form navegar direto pra
+   ficha (em vez de ficar preso em `/novo` sem feedback nenhum).
+2. **Item de catálogo não pré-preenchia nada** — selecionar um item no
+   dropdown "Item de catálogo (opcional)" do form de item de pedido não
+   fazia nada além de guardar a referência; produto/modelo/valor
+   unitário continuavam em branco, obrigando a redigitar tudo — o oposto
+   do que a Fase 2 documentou como intenção. Corrigido com um
+   `onChange` que preenche os campos via `ref` (o cliente ainda pode
+   editar antes de adicionar).
+3. **Bug de ambiente, não de código**: um service worker registrado pelo
+   mecano-erp (que roda na mesma porta 3000 em outro momento) ficava
+   associado à origem `http://localhost:3000` e servia uma versão em
+   cache do mecano (cor/tema laranja) antes do F5 corrigir. Como este
+   projeto ainda não tem service worker próprio, adicionado
+   `StaleServiceWorkerCleanup` (client component no `layout.tsx` raiz)
+   que desregistra qualquer service worker e limpa o cache ao montar —
+   remover quando o Fase 5 (PWA/offline) implementar o service worker de
+   verdade deste projeto.
+4. **Filtro/ordenação existiam só no backend** — `listPedidos` já aceitava
+   `status`/`sort` desde a Fase 2, mas não havia nenhum controle de UI
+   pra usar isso, e `clientes`/`catalogo-bordado` não tinham filtro
+   nenhum. Portado `ListFilterBar` do mecano-erp (componente 100%
+   genérico, foi para `components/` do BaseERP também) e adicionado
+   `CLIENTE_SORT_OPTIONS`/`CATALOGO_BORDADO_SORT_OPTIONS` seguindo a
+   convenção `<MODULO>_SORT_OPTIONS` do mecano. Também criado
+   `PEDIDOS_ABERTOS_STATUSES` + suporte a `statusIn` em `listPedidos`
+   para o filtro "Em aberto" (que soma vários status, não é um valor
+   único do enum).
+
+## 2026-09-25 (cont.) — Links de linha viram `ActionLink`, cards do painel ficam clicáveis
+
+Portado `ActionLink` do mecano-erp (`components/action-link.tsx` —
+mesmo componente, cor primária sem sublinhado fixo, ícone que desliza
+no hover/foco) para todo link de linha de tabela (`clientes`,
+`catalogo-bordado`, `pedidos`, lista de "pedidos recentes" do painel) —
+foi para `components/` do BaseERP também, como o `ListFilterBar`.
+Correção de rumo: uma tentativa anterior (sublinhado com transição CSS
+própria) foi revertida a pedido do usuário, que queria exatamente o
+padrão visual do mecano-erp, não uma variação nova.
+
+Cada card de KPI do painel (`Pedidos em aberto`, `Aguardando aprovação`,
+`Em produção`, `Saldo a receber`, etc.) agora é um link para
+`/pedidos?status=<valor>` (ou `/clientes`, `/financeiro`) — antes o
+número era só uma estatística solta, sem jeito de ver quais pedidos
+exatamente a compõem.
+
+Adicionados hints (`<Hint>`, já existente em `core`) em: CPF/CNPJ do
+cliente (a validação confere dígito verificador de verdade, não só
+formato), adiantamento do pedido (é o TOTAL já recebido, não o valor de
+um novo pagamento — ponto que já tinha confundido até a validação
+manual desta sessão), item de catálogo no form de pedido (o que o
+preenchimento automático faz), preço padrão do catálogo (é só sugestão,
+o valor final do pedido continua editável), e nota fiscal (como o
+sistema decide NF-e vs. NFS-e por item).

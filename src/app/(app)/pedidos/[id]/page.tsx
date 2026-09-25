@@ -4,6 +4,7 @@ import { Printer } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Hint } from "@/components/hint";
 import { formatCents } from "@/core/money";
 import { formatDate } from "@/core/format";
 import { getPedidoById, listPedidoItens } from "@/modules/pedidos/queries";
@@ -113,7 +114,15 @@ export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Nota fiscal</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <CardTitle className="text-base">Nota fiscal</CardTitle>
+            <Hint>
+              O tipo é decidido automaticamente por item: peças com item de catálogo vinculado
+              (venda de produto pronto) geram NF-e; produtos avulsos, digitados à mão (serviço sobre
+              peça trazida pelo cliente), geram NFS-e. Um pedido com os dois tipos de item pode
+              gerar as duas notas juntas.
+            </Hint>
+          </div>
           {pedido.status === "entregue" && <EmitirNotaButton pedidoId={pedido.id} />}
         </CardHeader>
         <CardContent>

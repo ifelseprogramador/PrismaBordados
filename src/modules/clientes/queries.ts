@@ -1,11 +1,26 @@
 import "server-only";
-import { and, asc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import { clientes } from "./schema";
 
-export async function listClientes(search?: string) {
+export const CLIENTE_SORT_OPTIONS = {
+  name_asc: "Nome (A→Z)",
+  name_desc: "Nome (Z→A)",
+  created_desc: "Mais recentes primeiro",
+  created_asc: "Mais antigos primeiro",
+} as const;
+export type ClienteSort = keyof typeof CLIENTE_SORT_OPTIONS;
+
+const CLIENTE_ORDER_BY = {
+  name_asc: asc(clientes.name),
+  name_desc: desc(clientes.name),
+  created_desc: desc(clientes.createdAt),
+  created_asc: asc(clientes.createdAt),
+} as const;
+
+export async function listClientes(options?: { search?: string; sort?: ClienteSort }) {
   const { organizationId, withDb } = await withOrg();
-  const term = search?.trim();
+  const term = options?.search?.trim();
 
   return withDb((tx) =>
     tx
@@ -19,7 +34,7 @@ export async function listClientes(search?: string) {
             : undefined,
         ),
       )
-      .orderBy(asc(clientes.name)),
+      .orderBy(CLIENTE_ORDER_BY[options?.sort ?? "name_asc"]),
   );
 }
 

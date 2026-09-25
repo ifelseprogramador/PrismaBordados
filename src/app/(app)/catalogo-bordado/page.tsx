@@ -10,15 +10,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SearchBox } from "@/components/search-box";
+import { ActionLink } from "@/components/action-link";
+import { ListFilterBar } from "@/components/list-filter-bar";
 import { formatCents } from "@/core/money";
-import { listCatalogoBordadoItens } from "@/modules/catalogo-bordado/queries";
+import {
+  listCatalogoBordadoItens,
+  CATALOGO_BORDADO_SORT_OPTIONS,
+  type CatalogoBordadoSort,
+} from "@/modules/catalogo-bordado/queries";
 
 export default async function CatalogoBordadoPage({
   searchParams,
 }: PageProps<"/catalogo-bordado">) {
-  const { q } = await searchParams;
+  const { q, sort } = await searchParams;
   const search = typeof q === "string" ? q : undefined;
-  const itens = await listCatalogoBordadoItens(search);
+  const sortParam = typeof sort === "string" ? (sort as CatalogoBordadoSort) : undefined;
+  const itens = await listCatalogoBordadoItens({ search, sort: sortParam });
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,7 +40,17 @@ export default async function CatalogoBordadoPage({
         </Button>
       </div>
 
-      <SearchBox placeholder="Buscar por tipo de produto..." />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SearchBox placeholder="Buscar por tipo de produto..." />
+        <ListFilterBar
+          filters={[]}
+          sortOptions={Object.entries(CATALOGO_BORDADO_SORT_OPTIONS).map(([value, label]) => ({
+            value,
+            label,
+          }))}
+          defaultSort="tipo_asc"
+        />
+      </div>
 
       <Table>
         <TableHeader>
@@ -54,8 +71,10 @@ export default async function CatalogoBordadoPage({
             </TableRow>
           )}
           {itens.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell className="font-medium">{item.tipoProduto}</TableCell>
+            <TableRow key={item.id} className="cursor-pointer">
+              <TableCell className="font-medium">
+                <ActionLink href={`/catalogo-bordado/${item.id}`}>{item.tipoProduto}</ActionLink>
+              </TableCell>
               <TableCell>{item.modeloPadrao ?? "—"}</TableCell>
               <TableCell>{item.tamanhosAceitos.join(", ") || "—"}</TableCell>
               <TableCell>{item.coresAceitas.join(", ") || "—"}</TableCell>

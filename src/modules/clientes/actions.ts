@@ -7,10 +7,14 @@ import type { ActionResult } from "@/core/action-result";
 import { clientes } from "./schema";
 import { parseClienteFormData } from "./validation";
 
+export interface InsertResult extends ActionResult {
+  id?: string;
+}
+
 export async function createCliente(
   _prevState: ActionResult,
   formData: FormData,
-): Promise<ActionResult> {
+): Promise<InsertResult> {
   const { organizationId, log, withDb } = await withOrg();
 
   const parsed = parseClienteFormData(formData);
@@ -21,11 +25,16 @@ export async function createCliente(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  await withDb((tx) => tx.insert(clientes).values({ ...parsed.data, organizationId }));
-  log.info("clientes.criar.sucesso");
+  const [cliente] = await withDb((tx) =>
+    tx
+      .insert(clientes)
+      .values({ ...parsed.data, organizationId })
+      .returning({ id: clientes.id }),
+  );
+  log.info("clientes.criar.sucesso", { clienteId: cliente.id });
 
   revalidatePath("/clientes");
-  return { ok: true };
+  return { ok: true, id: cliente.id };
 }
 
 export async function updateCliente(

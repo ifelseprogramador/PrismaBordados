@@ -1,11 +1,29 @@
 import "server-only";
-import { and, asc, eq, ilike } from "drizzle-orm";
+import { and, asc, desc, eq, ilike } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import { catalogoBordadoItens } from "./schema";
 
-export async function listCatalogoBordadoItens(search?: string) {
+export const CATALOGO_BORDADO_SORT_OPTIONS = {
+  tipo_asc: "Tipo de produto (A→Z)",
+  tipo_desc: "Tipo de produto (Z→A)",
+  preco_desc: "Preço padrão (maior primeiro)",
+  preco_asc: "Preço padrão (menor primeiro)",
+} as const;
+export type CatalogoBordadoSort = keyof typeof CATALOGO_BORDADO_SORT_OPTIONS;
+
+const CATALOGO_BORDADO_ORDER_BY = {
+  tipo_asc: asc(catalogoBordadoItens.tipoProduto),
+  tipo_desc: desc(catalogoBordadoItens.tipoProduto),
+  preco_desc: desc(catalogoBordadoItens.defaultPriceCents),
+  preco_asc: asc(catalogoBordadoItens.defaultPriceCents),
+} as const;
+
+export async function listCatalogoBordadoItens(options?: {
+  search?: string;
+  sort?: CatalogoBordadoSort;
+}) {
   const { organizationId, withDb } = await withOrg();
-  const term = search?.trim();
+  const term = options?.search?.trim();
 
   return withDb((tx) =>
     tx
@@ -17,7 +35,7 @@ export async function listCatalogoBordadoItens(search?: string) {
           term ? ilike(catalogoBordadoItens.tipoProduto, `%${term}%`) : undefined,
         ),
       )
-      .orderBy(asc(catalogoBordadoItens.tipoProduto)),
+      .orderBy(CATALOGO_BORDADO_ORDER_BY[options?.sort ?? "tipo_asc"]),
   );
 }
 

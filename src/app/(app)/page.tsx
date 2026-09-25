@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ClipboardList, LayoutDashboard, Package, Users, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ActionLink } from "@/components/action-link";
 import { getActiveOrg } from "@/core/auth";
 import { formatCents } from "@/core/money";
 import { getPedidosDashboardSummary } from "@/modules/pedidos";
@@ -20,6 +21,11 @@ import {
  * de `saldoCents` de pedidos não terminais) são métricas DIFERENTES,
  * mostradas lado a lado, nunca somadas (ver docs/decisoes.md) — a
  * planilha antiga da empresa aparentemente confundia as duas.
+ *
+ * Cada card de contagem/valor é clicável e leva para a lista já filtrada
+ * com o mesmo critério que ele soma (ex.: "Pedidos em aberto" ->
+ * `/pedidos?status=aberto`) — sem isso o número era só uma estatística
+ * solta, sem jeito de ver quais pedidos exatamente compõem aquele total.
  */
 export default async function DashboardPage() {
   const [org, pedidosSummary, clientes, financeiroSummary, entradasSaidasPorMes] =
@@ -43,37 +49,49 @@ export default async function DashboardPage() {
           icon={ClipboardList}
           label="Pedidos em aberto"
           value={String(pedidosSummary.openCount)}
+          href="/pedidos?status=aberto"
         />
         <KpiCard
           icon={Package}
           label="Aguardando aprovação"
           value={String(pedidosSummary.awaitingApprovalCount)}
+          href="/pedidos?status=orcamento"
         />
-        <KpiCard icon={Users} label="Clientes cadastrados" value={String(clientes.length)} />
+        <KpiCard
+          icon={Users}
+          label="Clientes cadastrados"
+          value={String(clientes.length)}
+          href="/clientes"
+        />
         <KpiCard
           icon={LayoutDashboard}
           label="Em produção"
           value={String(pedidosSummary.inProgressCount)}
+          href="/pedidos?status=em_producao"
         />
         <KpiCard
           icon={Wallet}
           label="Entradas do mês"
           value={formatCents(financeiroSummary.entradasCents)}
+          href="/financeiro"
         />
         <KpiCard
           icon={Wallet}
           label="Saídas do mês"
           value={formatCents(financeiroSummary.saidasCents)}
+          href="/financeiro"
         />
         <KpiCard
           icon={Wallet}
           label="Lucro do mês"
           value={formatCents(financeiroSummary.lucroCents)}
+          href="/financeiro"
         />
         <KpiCard
           icon={ClipboardList}
           label="Saldo a receber"
           value={formatCents(pedidosSummary.receivableCents)}
+          href="/pedidos?status=aberto"
         />
       </div>
 
@@ -104,9 +122,9 @@ export default async function DashboardPage() {
               <ul className="flex flex-col gap-2">
                 {pedidosSummary.recent.map((pedido) => (
                   <li key={pedido.id} className="flex items-center justify-between text-sm">
-                    <Link href={`/pedidos/${pedido.id}`} className="hover:underline">
+                    <ActionLink href={`/pedidos/${pedido.id}`}>
                       #{pedido.number} — {pedido.customerName}
-                    </Link>
+                    </ActionLink>
                     <div className="flex items-center gap-2">
                       <PedidoStatusBadge status={pedido.status} />
                       <span className="text-muted-foreground">
@@ -128,22 +146,28 @@ function KpiCard({
   icon: Icon,
   label,
   value,
+  href,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
+  href: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-start justify-between gap-2 pt-6">
-        <div className="flex flex-col gap-1">
-          <p className="text-muted-foreground text-sm">{label}</p>
-          <p className="text-2xl font-semibold tracking-tight">{value}</p>
-        </div>
-        <div className="bg-muted text-muted-foreground rounded-lg p-2">
-          <Icon className="h-4 w-4" />
-        </div>
-      </CardContent>
-    </Card>
+    <Link href={href} className="group block">
+      <Card className="group-hover:border-primary/50 transition-colors">
+        <CardContent className="flex items-start justify-between gap-2 pt-6">
+          <div className="flex flex-col gap-1">
+            <p className="text-muted-foreground text-sm">{label}</p>
+            <p className="group-hover:text-primary text-2xl font-semibold tracking-tight transition-colors">
+              {value}
+            </p>
+          </div>
+          <div className="bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary rounded-lg p-2 transition-colors">
+            <Icon className="h-4 w-4" />
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import { clientes } from "@/modules/clientes/schema";
 import { pedidoItens, pedidoStatusEnum, pedidos } from "./schema";
@@ -20,6 +20,18 @@ const PEDIDO_ORDER_BY = {
 } as const;
 
 export type PedidoStatusFilter = (typeof pedidoStatusEnum.enumValues)[number];
+
+/** Conjunto de status que os KPIs "Pedidos em aberto" e "Saldo a receber"
+ * do painel somam — qualquer pedido que ainda não chegou num estado
+ * terminal. Exportado para o card do painel poder linkar direto para a
+ * lista já filtrada com o mesmo critério (`/pedidos?status=aberto`, ver
+ * `listPedidos` abaixo). */
+export const PEDIDOS_ABERTOS_STATUSES = [
+  "orcamento",
+  "aprovado",
+  "em_producao",
+  "pronto",
+] as const satisfies readonly PedidoStatusFilter[];
 
 /** Resumo pro painel (`(app)/page.tsx`): contagem por status e saldo a
  * receber (soma de `saldoCents` de pedidos NÃO terminais — um pedido
@@ -79,7 +91,13 @@ export async function getPedidosDashboardSummary() {
 
 export async function listPedidos(options?: {
   search?: string;
+  /** Filtro por um único status (valor real do enum). */
   status?: PedidoStatusFilter;
+  /** Filtro por um conjunto de status (ex. `PEDIDOS_ABERTOS_STATUSES`) —
+   * usado pelo link do card "Pedidos em aberto"/"Saldo a receber" do
+   * painel, que não corresponde a um único valor do enum. Se ambos
+   * `status` e `statusIn` forem passados, `statusIn` prevalece. */
+  statusIn?: readonly PedidoStatusFilter[];
   sort?: PedidoSort;
 }) {
   const { organizationId, withDb } = await withOrg();
@@ -95,7 +113,9 @@ export async function listPedidos(options?: {
       )!,
     );
   }
-  if (options?.status) {
+  if (options?.statusIn) {
+    conditions.push(inArray(pedidos.status, options.statusIn));
+  } else if (options?.status) {
     conditions.push(eq(pedidos.status, options.status));
   }
 

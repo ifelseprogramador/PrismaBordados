@@ -14,4 +14,5 @@ export {
   createCatalogoBordadoItem,
   updateCatalogoBordadoItem,
   deleteCatalogoBordadoItem,
+  type InsertResult,
 } from "./actions";

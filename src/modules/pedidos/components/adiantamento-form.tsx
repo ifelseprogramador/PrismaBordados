@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Hint } from "@/components/hint";
 import type { ActionResult } from "@/core/action-result";
 import { formatCents } from "@/core/money";
 import { registerAdiantamento } from "../actions";
@@ -37,7 +38,14 @@ export function AdiantamentoForm({
   return (
     <form action={formAction} className="flex items-end gap-2">
       <div className="flex flex-col gap-1">
-        <Label htmlFor="adiantamento">Adiantamento recebido (total)</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="adiantamento">Adiantamento recebido (total)</Label>
+          <Hint>
+            Digite o TOTAL já recebido até agora, não o valor de um novo pagamento. Ex.: se o
+            cliente já pagou R$ 50 e agora está pagando mais R$ 30, digite R$ 80 (não R$ 30). O
+            saldo a receber é sempre recalculado como total do pedido menos este valor.
+          </Hint>
+        </div>
         <Input
           id="adiantamento"
           name="adiantamento"

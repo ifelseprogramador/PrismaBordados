@@ -36,12 +36,16 @@ export function FiscalNotasList({ notas }: { notas: FiscalNota[] }) {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Não usa <ActionLink> aqui: são downloads externos
+             * (target="_blank"), que o wrapper em cima de next/link não
+             * repassa — mesma paleta/hover do padrão (cor primária, sem
+             * sublinhado, fundo suave no hover), escrita à mão. */}
             {nota.pdfUrl && (
               <a
                 href={nota.pdfUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-primary flex items-center gap-1 text-xs hover:underline"
+                className="text-primary hover:bg-primary/10 -mx-1.5 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs transition-colors"
               >
                 <FileDown className="h-3 w-3" /> PDF
               </a>
@@ -51,7 +55,7 @@ export function FiscalNotasList({ notas }: { notas: FiscalNota[] }) {
                 href={nota.xmlUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-primary flex items-center gap-1 text-xs hover:underline"
+                className="text-primary hover:bg-primary/10 -mx-1.5 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs transition-colors"
               >
                 <FileDown className="h-3 w-3" /> XML
               </a>

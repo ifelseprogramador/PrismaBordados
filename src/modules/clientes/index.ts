@@ -9,4 +9,4 @@
 export type { Cliente } from "./schema.types";
 export { clienteSchema, type ClienteInput } from "./validation";
 export { listClientes, getClienteById, listClientesForSelect } from "./queries";
-export { createCliente, updateCliente, deleteCliente } from "./actions";
+export { createCliente, updateCliente, deleteCliente, type InsertResult } from "./actions";
