@@ -10,6 +10,7 @@ import { liveSessions, memberships, organizations } from "@/db/schema";
 import { recordAudit } from "@/core/admin/audit";
 import { sendBroadcast as broadcast } from "@/core/supabase/realtime-sender";
 import type { ActionResult } from "@/core/action-result";
+import { expireStalePendingSessions } from "./queries";
 import {
   adminSupportInboxChannelName,
   liveSessionChannelName,
@@ -27,6 +28,7 @@ export async function requestSupportAccess(organizationId: string): Promise<Sess
   const { userId, log, withDb } = await requireAdmin();
 
   const result = await withDb(async (db) => {
+    await expireStalePendingSessions(db);
     const [existing] = await db
       .select({ id: liveSessions.id })
       .from(liveSessions)
@@ -72,6 +74,7 @@ export async function callForSupport(): Promise<SessionActionResult> {
   const { organizationName } = await getActiveOrg();
 
   const session = await withDb(async (db) => {
+    await expireStalePendingSessions(db);
     const [existing] = await db
       .select({ id: liveSessions.id })
       .from(liveSessions)

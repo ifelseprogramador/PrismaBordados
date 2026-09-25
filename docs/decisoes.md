@@ -1076,3 +1076,47 @@ só a partir de `sm:` (ícone puro no celular), título abreviado
 ("Prisma Admin") no celular, `VersionBadge` escondido no celular
 (informação secundária). A linha de cada pessoa em "Pessoas com acesso"
 também ganhou `flex-wrap` (mesma causa, escopo menor).
+
+## 2026-09-25 (cont.) — Sessão de suporte pendurada + expiração automática + mais layout mobile de /admin
+
+Usuário reportou, ao logar: o aviso "Suporte Prisma quer ver sua tela"
+aparecendo sem ninguém ter pedido suporte. Investigado direto no banco
+de produção (com a conexão privilegiada — a primeira consulta, pela
+conexão comum da aplicação, deu falso-negativo: RLS sem contexto de
+usuário filtra tudo, `[]` não provava tabela vazia).
+
+**Achado**: não era bug de código — havia uma sessão `live_sessions`
+real, `status = pending`, `initiated_by = admin`, criada mais cedo
+(provavelmente alguém clicando "Solicitar acesso à tela" em
+`LiveSupportCard`, em `/admin/organizacoes/[id]`, sem nunca aprovar/
+recusar do outro lado). Sem nenhum prazo de expiração, um pedido
+esquecido assim ficava pendurado pra sempre, mostrando o aviso pra
+qualquer um que entrasse naquela organização indefinidamente. Encerrada
+manualmente (update direto, mesmo efeito de `endLiveSession`, com
+entrada correspondente em `audit_log` pra manter o rastro).
+
+**Corrigido pra não acontecer de novo**: `PENDING_SESSION_TTL_MINUTES = 10`
+(`core/live-support/domain.ts`, novo — também `isPendingSessionExpired`,
+pura, testada sem banco em `__tests__/domain.test.ts`).
+`queries.ts#expireStalePendingSessions` (efeito de verdade, em SQL: UPDATE
+`pending` mais velho que o TTL para `ended`) chamado no início de TODA
+leitura que decide "existe pedido pendente" — `getOpenSessionForMyOrg`,
+`getOpenSessionForOrgAdmin`, `listPendingUserRequestsForAdmin` — e nas
+duas ações que criam um pedido novo (`requestSupportAccess`,
+`callForSupport`), antes de checar se já existe um em aberto (senão um
+pedido velho expirado continuaria bloqueando um pedido novo). Sem
+cron/job separado de propósito — a varredura é barata e roda exatamente
+nos pontos onde "pendente" importa.
+
+**Mais mobile de `/admin`** (usuário: "ainda não está certo... estourando
+algumas partes" — o fix anterior só cobriu o cabeçalho do layout). Mesmo
+padrão de bug repetido em 4 cabeçalhos de página — título à esquerda +
+botões à direita, `justify-between` sem `flex-wrap`: `/admin`
+("Organizações" + "Backup do sistema" + "Nova organização"),
+`/admin/organizacoes/[id]` (nome da organização + badges + "Entrar como
+suporte"/"Bloquear organização"), `/admin/notificacoes` ("Notificações" +
+"Apagar todas"/"Nova notificação"), `/admin/notificacoes/[id]` (título da
+notificação, que pode ser longo, + "Remover"). Corrigido com
+`flex-wrap gap-*` nos containers + `min-w-0`/`truncate` nos títulos
+longos (nome de organização, título de notificação), pro texto quebrar
+em vez de estourar a largura da tela.

@@ -9,8 +9,10 @@ import { LoginForm } from "./login-form";
  * `core/supabase/middleware.ts`). Marca (ícone + nome + slogan) +
  * selo de conexão segura antes de só cair direto no formulário — pedido
  * do usuário pra passar mais profissionalismo/confiança logo de cara,
- * já que é multi-tenant (várias empresas de bordado diferentes confiam
- * os próprios dados a este login).
+ * já que é multi-tenant (várias organizações diferentes confiam os
+ * próprios dados a este login). Slogan deliberadamente genérico — sem
+ * mencionar "bordado" (pedido do usuário): o nome do sistema não deve
+ * amarrar a apresentação a um vertical de negócio específico.
  */
 export default function LoginPage() {
   return (
@@ -21,7 +23,7 @@ export default function LoginPage() {
         </div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Prisma</h1>
-          <p className="text-muted-foreground text-sm">Gestão completa para empresas de bordado</p>
+          <p className="text-muted-foreground text-sm">Gestão completa para o seu negócio</p>
         </div>
       </div>
 

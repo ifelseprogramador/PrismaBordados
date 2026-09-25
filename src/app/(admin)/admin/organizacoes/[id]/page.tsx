@@ -43,12 +43,12 @@ export default async function AdminOrganizationDetailPage({
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-start gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-2">
           <BackButton href="/admin" />
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{org.name}</h1>
-            <div className="mt-1 flex gap-2">
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-semibold tracking-tight">{org.name}</h1>
+            <div className="mt-1 flex flex-wrap gap-2">
               <Badge variant={org.status === "blocked" ? "destructive" : "secondary"}>
                 {org.status === "blocked" ? "Bloqueada" : "Ativa"}
               </Badge>
@@ -56,7 +56,7 @@ export default async function AdminOrganizationDetailPage({
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ImpersonateButton organizationId={org.id} />
           <OrgStatusToggle organizationId={org.id} status={org.status} />
         </div>

@@ -29,10 +29,10 @@ export default async function NotificationDetailPage({
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <BackButton />
-          <h1 className="text-2xl font-semibold tracking-tight">{notification.title}</h1>
+          <h1 className="truncate text-2xl font-semibold tracking-tight">{notification.title}</h1>
         </div>
         <ConfirmDeleteButton
           title="Apagar notificação"
