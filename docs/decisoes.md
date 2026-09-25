@@ -468,3 +468,26 @@ com/sem `providerNotaId`) com `__tests__/provider.fake.ts`
 (`FakeFiscalProvider`, que não faz rede nenhuma) em vez de precisar de
 Postgres — mesma disciplina de `pedidos/domain.ts`, aplicada a uma peça
 que envolve um "port" externo (o provider) em vez de só cálculo.
+
+## 2026-09-24 — RLS validada contra Postgres real (BaseERP + módulos de bordado)
+
+Mesma validação descrita em `base-erp/docs/decisoes.md` (bug de ordenação
+entre `0001_rls_policies.sql`/`0002_platform_admin_rls.sql` corrigido e
+espelhado aqui, teste de isolamento com premissa quebrada corrigido e
+espelhado aqui). Adicionalmente, rodado neste projeto: as migrations
+completas (drizzle-kit + custom, incluindo `0005_modulos_bordados_rls.sql`
+e `0006_financeiro_fiscal_rls.sql`) foram aplicadas do zero contra um
+Postgres 16 local sem erros, e um smoke test manual (SQL direto, dois
+usuários comuns em duas organizações diferentes) confirmou isolamento real
+em `clientes`, `pedidos` e `pedido_itens` — este último o caso mais
+arriscado, por ter RLS via `exists (select ... from pedidos where ...)`
+em vez do padrão simples `organization_id in (...)`: usuário da
+organização A não via o pedido nem o item da organização B.
+
+Não foi possível validar da mesma forma `financeiro_lancamentos` e
+`fiscal_notas`/`fiscal_credentials` neste smoke test (ficou restrito ao
+que já existia batendo com os módulos testados na Fase 2) — recomendação
+para quem for validar antes de produção: repetir o mesmo smoke test
+manual cobrindo esses dois módulos, com atenção especial a
+`financeiro_lancamentos.reference_id` (sem FK, decisão deliberada) e a
+`fiscal_notas` (FK real para `pedidos`, 1:N).
