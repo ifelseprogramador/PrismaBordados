@@ -491,3 +491,23 @@ para quem for validar antes de produção: repetir o mesmo smoke test
 manual cobrindo esses dois módulos, com atenção especial a
 `financeiro_lancamentos.reference_id` (sem FK, decisão deliberada) e a
 `fiscal_notas` (FK real para `pedidos`, 1:N).
+
+## 2026-09-24 (cont.) — Validado de ponta a ponta contra o projeto Supabase real
+
+Migrations aplicadas com sucesso contra o projeto Supabase real deste
+sistema (`PrismaBordados`): tenancy, RLS, papel `base_erp_app`, e os
+módulos de bordado/financeiro/fiscal. Senha do papel de aplicação
+definida, `DATABASE_URL` migrado para o pooler.
+
+Corrigidos dois problemas que só apareceram contra Supabase de verdade
+(mesmos do BaseERP, ver `base-erp/docs/decisoes.md` para o detalhe):
+`auth.users` real recusa insert direto (o teste de isolamento foi
+reescrito para usar a Admin API do Supabase, criando/apagando usuários
+reais), e o formato do username no pooler precisa do project ref como
+sufixo (`base_erp_app.<ref>`, não só `base_erp_app`).
+
+Isolamento validado dessas duas formas: (1) o teste de integração
+reescrito, rodando com usuários reais via Admin API; (2) um script
+descartável adicional (criado, rodado e apagado na mesma sessão) que
+criou 2 organizações e 2 usuários reais e confirmou que um não vê dados
+do outro, e que sem contexto de sessão nenhuma organização é visível.
