@@ -37,36 +37,45 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen flex-1 flex-col">
-      <header className="flex items-center justify-between border-b bg-zinc-950 px-4 py-3 text-zinc-50">
-        <Link href="/admin" className="flex items-center gap-2 hover:text-zinc-300">
-          <ShieldAlert className="h-5 w-5" />
-          <span className="font-semibold">Prisma — Administração da plataforma</span>
+      <header className="flex items-center justify-between gap-2 border-b bg-zinc-950 px-3 py-3 text-zinc-50 sm:px-4">
+        <Link href="/admin" className="flex min-w-0 items-center gap-2 hover:text-zinc-300">
+          <ShieldAlert className="h-5 w-5 shrink-0" />
+          {/* Título curto no celular (senão estoura a linha junto dos
+              botões à direita) — nome completo a partir de `sm`. */}
+          <span className="truncate font-semibold">
+            <span className="sm:hidden">Prisma Admin</span>
+            <span className="hidden sm:inline">Prisma — Administração da plataforma</span>
+          </span>
         </Link>
-        <div className="flex items-center gap-3">
-          <VersionBadge className="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-50" />
+        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+          <VersionBadge className="hidden text-zinc-400 hover:bg-zinc-800 hover:text-zinc-50 sm:inline-flex" />
           {/* Botões (não links soltos de texto) pra ficar claro que são
               ações/destinos — "Notificações" com borda por ser a área do
               dono; "Voltar ao app" mais discreto, só no hover. Megafone e
-              não sino: o sino ao lado já é o de pedidos de suporte. */}
+              não sino: o sino ao lado já é o de pedidos de suporte.
+              Rótulo de texto só a partir de `sm` — no celular vira ícone
+              puro (senão os itens deste grupo não cabem na largura da
+              tela, o bug original reportado: "área do dono estourando a
+              tela no celular"). */}
           <Button
             variant="outline"
             size="sm"
             nativeButton={false}
-            render={<Link href="/admin/notificacoes" />}
+            render={<Link href="/admin/notificacoes" aria-label="Notificações" />}
             className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-500 hover:bg-zinc-800 hover:text-zinc-50"
           >
             <Megaphone className="h-4 w-4" />
-            Notificações
+            <span className="hidden sm:inline">Notificações</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             nativeButton={false}
-            render={<Link href="/" />}
+            render={<Link href="/" aria-label="Voltar ao app" />}
             className="text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
           >
             <ArrowLeftRight className="h-4 w-4" />
-            Voltar ao app
+            <span className="hidden sm:inline">Voltar ao app</span>
           </Button>
           <SupportNotificationBell initialRequests={pendingRequests} />
           <form action={logout}>

@@ -1014,3 +1014,65 @@ segura" — pedido do usuário pra passar mais profissionalismo/confiança
 logo de cara. `/` sem sessão já redirecionava pra `/login`
 (`PUBLIC_PATHS` em `core/supabase/middleware.ts`) — não precisou mexer
 nisso, só confirmado que já funcionava.
+
+## 2026-09-25 (cont.) — Recuperação de senha (autoatendimento + reset pelo dono) + mobile do /admin
+
+Duas perguntas do usuário: como um usuário recupera a senha sozinho, e
+como o dono da plataforma reseta a senha de alguém enviando uma
+provisória; mais um bug visual: "a área do dono" (confirmado como
+`/admin` — o próprio código já usa esse termo em comentário do
+`layout.tsx`) estourando a tela no celular.
+
+**Autoatendimento** ("Esqueci minha senha", link novo em
+`login-form.tsx`): `/esqueci-senha` pede o e-mail, chama
+`supabase.auth.resetPasswordForEmail` (`(auth)/actions.ts#requestPasswordReset`)
+— sempre responde com a mesma mensagem de sucesso, exista ou não o
+e-mail, pra nunca confirmar/negar existência de conta (evita enumeração
+de usuário). `redirectTo` aponta pra `/redefinir-senha`, construído a
+partir dos headers da própria request (`getSiteOrigin`, não existe
+`NEXT_PUBLIC_SITE_URL` neste projeto) — `x-forwarded-host`/
+`x-forwarded-proto` (Vercel) com fallback pro `host` de dev local.
+
+`/redefinir-senha` roda inteiramente no CLIENTE
+(`reset-password-form.tsx`) — o link do e-mail carrega um token de
+recuperação no HASH da própria URL, que o cliente Supabase do
+NAVEGADOR processa sozinho (`detectSessionInUrl`); o servidor nunca vê
+essa sessão. Por isso `/redefinir-senha` (e `/esqueci-senha`) entraram
+em `PUBLIC_PATHS` (`core/supabase/middleware.ts`) — sem isso, o próprio
+middleware redirecionaria pro `/login` ANTES da página ter chance de
+processar o token (o middleware roda no servidor, antes do JS do
+navegador). Depois de `updateUser({password})` com sucesso, desloga de
+propósito e manda pro `/login` — mais claro que cair direto logado sem
+confirmar.
+
+**PRÉ-REQUISITO fora do código, no painel do Supabase**: a URL
+`https://<seu-domínio>/redefinir-senha` precisa estar cadastrada em
+Authentication -> URL Configuration -> Redirect URLs do projeto
+Supabase — sem isso, o Supabase recusa o `redirectTo` e o link do
+e-mail não funciona. Não dá pra configurar isso por código.
+
+**Reset pelo dono da plataforma** (`/admin/organizacoes/[id]`, card
+"Pessoas com acesso"): botão "Resetar senha" por pessoa
+(`reset-member-password-button.tsx`) — gera uma senha provisória
+aleatória (`generateTemporaryPassword`, alfabeto sem caracteres
+ambíguos tipo `0`/`O`/`1`/`l`/`I`, pensado pra ser repassado por
+telefone) e grava direto via Admin API do Supabase
+(`admin.updateUserById`, `core/admin/actions.ts#resetMemberPassword`) —
+não precisa da senha antiga, o usuário perde acesso com a senha velha
+na hora. A senha só aparece UMA VEZ na tela (dialog), nunca fica salva
+em lugar nenhum do sistema — o admin copia e repassa por um canal
+próprio (WhatsApp, telefone); este sistema não manda e-mail nenhum
+desse fluxo. Registrado em `audit_log`
+(`usuario.senha_resetada`). Depois de entrar com a provisória, a pessoa
+troca pela definitiva usando o mesmo fluxo de autoatendimento acima —
+não existe uma tela separada de "trocar senha estando logado" nesta
+entrega (ficaria pra uma entrega futura de "minha conta", se precisar).
+
+**Mobile de `/admin`**: o cabeçalho (`(admin)/admin/layout.tsx`) tinha
+título longo + 5 itens (badge de versão, dois botões com texto, sino de
+notificação, sair) numa única linha sem quebra nem breakpoint nenhum —
+estourava a largura da tela em celular. Corrigido com rótulos de texto
+só a partir de `sm:` (ícone puro no celular), título abreviado
+("Prisma Admin") no celular, `VersionBadge` escondido no celular
+(informação secundária). A linha de cada pessoa em "Pessoas com acesso"
+também ganhou `flex-wrap` (mesma causa, escopo menor).

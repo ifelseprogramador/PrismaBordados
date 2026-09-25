@@ -421,3 +421,60 @@ export async function clearAuditLogForOrg(organizationId: string): Promise<Actio
     return { ok: false, message: "Não foi possível limpar o histórico. Tente novamente." };
   }
 }
+
+/** Letras/dígitos sem caracteres ambíguos (0/O, 1/l/I) — pensado pra ser
+ * digitado/ditado por telefone quando o admin repassa pro usuário. */
+const TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+
+function generateTemporaryPassword(length = 12): string {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => TEMP_PASSWORD_ALPHABET[b % TEMP_PASSWORD_ALPHABET.length]).join(
+    "",
+  );
+}
+
+export interface ResetMemberPasswordResult extends ActionResult {
+  temporaryPassword?: string;
+}
+
+/**
+ * Reset de senha pelo dono da plataforma: gera uma senha provisória
+ * aleatória e grava direto via Admin API do Supabase (nunca precisa da
+ * senha antiga) — devolvida UMA vez na resposta da action, pra quem
+ * chamou mostrar na tela e repassar pro usuário (WhatsApp, telefone,
+ * etc; este sistema não manda e-mail próprio nenhum). O usuário troca
+ * por uma senha definitiva da forma que quiser: fazendo login com a
+ * provisória e depois usando "Esqueci minha senha" (fluxo de
+ * autoatendimento, `(auth)/actions.ts#requestPasswordReset`) — não há
+ * uma tela separada de "trocar senha estando logado" nesta entrega.
+ */
+export async function resetMemberPassword(
+  organizationId: string,
+  userId: string,
+): Promise<ResetMemberPasswordResult> {
+  const { userId: actorUserId, log, withDb } = await requireAdmin();
+
+  const temporaryPassword = generateTemporaryPassword();
+  const supabaseAdmin = createSupabaseAdminClient();
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    password: temporaryPassword,
+  });
+
+  if (error) {
+    log.error("admin.usuario.resetar_senha.falhou", { organizationId, userId, err: error });
+    return { ok: false, message: "Não foi possível resetar a senha. Tente novamente." };
+  }
+
+  log.warn("admin.usuario.resetar_senha", { organizationId, userId });
+  await withDb((db) =>
+    recordAudit(db, {
+      actorUserId,
+      organizationId,
+      action: "usuario.senha_resetada",
+      metadata: { userId },
+    }),
+  );
+
+  return { ok: true, temporaryPassword };
+}
