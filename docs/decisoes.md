@@ -974,3 +974,43 @@ posicionado, com `z-index` explicitamente maior que o do `Link` (que
 fica em 0/auto), e pinta por cima de verdade. Comentário atualizado nos
 dois componentes com essa pegadinha, pra não repetir o erro numa
 variação futura desse padrão.
+
+## 2026-09-25 (cont.) — Rede de segurança de logs + telas de erro + marca no login
+
+Perguntado pelo usuário, já com o sistema publicado
+(`prisma-bordados.vercel.app`): onde ver logs de erro quando algo
+quebrar pro cliente, e se o sistema está bem estruturado com logs onde
+importa.
+
+**Gap real encontrado**: nenhuma Server Action dos módulos de negócio
+(`clientes`, `pedidos`, `financeiro`, `fiscal`, `catalogo-bordado`) tem
+`try/catch` em volta das operações de banco — um erro inesperado sobe
+cru, sem passar pelo `core/logger.ts` estruturado que `core/admin`,
+`core/live-support`, `core/notifications` e os crons já usam. Não
+"perde" o erro (o Next.js/Vercel captura e mostra nos Runtime Logs de
+qualquer jeito), mas sem `requestId`/contexto de negócio amarrado,
+dificultando cruzar "qual organização, em qual ação" quando um cliente
+reporta um problema.
+
+Corrigido com `instrumentation.ts#onRequestError` (Next 16, API nova —
+ver `node_modules/next/dist/docs/.../instrumentation.md`, consultado
+antes por causa do aviso em AGENTS.md sobre não assumir API de treino):
+roda automaticamente pro Next.js toda vez que captura um erro de
+servidor (Server Component, Route Handler OU Server Action —
+`routeType: "action"` cobre exatamente o caso sem `try/catch`), mesmo
+sem nenhum código de aplicação pedindo. Fica em `instrumentation.ts` na
+RAIZ do repo (não em `src/`), mesmo lugar de `proxy.ts` — convenção já
+estabelecida aqui, diferente do padrão comum de outros projetos Next
+que colocam dentro de `src/`.
+
+Também criados `app/error.tsx`/`app/global-error.tsx` (não existia
+nenhum) — antes, um erro inesperado numa página derrubava pra tela
+genérica do Next.js, sem "tentar de novo" e sem nada explicando o que
+aconteceu.
+
+**Tela de login com marca**: ícone (`Gem`, lucide-react) + "Prisma" +
+slogan ("Gestão completa para empresas de bordado") + selo "Conexão
+segura" — pedido do usuário pra passar mais profissionalismo/confiança
+logo de cara. `/` sem sessão já redirecionava pra `/login`
+(`PUBLIC_PATHS` em `core/supabase/middleware.ts`) — não precisou mexer
+nisso, só confirmado que já funcionava.
