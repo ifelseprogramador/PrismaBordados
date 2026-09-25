@@ -89,6 +89,146 @@ export async function getPedidosDashboardSummary() {
   });
 }
 
+/**
+ * Todos os pedidos de um cliente, sem paginação/filtro — usado pela
+ * orquestração de LGPD (`app/(app)/clientes/[id]/privacy-actions.ts`)
+ * para: (1) decidir se um cliente pode ser DELETADO de verdade (nenhum
+ * pedido) ou só ANONIMIZADO (`customerId` tem FK `onDelete: "restrict"`);
+ * (2) montar o export de portabilidade de dados do titular.
+ */
+export async function listPedidosByClienteId(clienteId: string) {
+  const { organizationId, withDb } = await withOrg();
+
+  return withDb((tx) =>
+    tx
+      .select({
+        id: pedidos.id,
+        number: pedidos.number,
+        status: pedidos.status,
+        totalCents: pedidos.totalCents,
+        adiantamentoCents: pedidos.adiantamentoCents,
+        saldoCents: pedidos.saldoCents,
+        deliveryDate: pedidos.deliveryDate,
+        createdAt: pedidos.createdAt,
+      })
+      .from(pedidos)
+      .where(and(eq(pedidos.organizationId, organizationId), eq(pedidos.customerId, clienteId)))
+      .orderBy(desc(pedidos.number)),
+  );
+}
+
+export interface ClienteComSaldoAReceber {
+  clienteId: string;
+  clienteName: string;
+  /** Soma de `saldoCents` de todos os pedidos NÃO cancelados do cliente —
+   * diferente do KPI "Saldo a receber" do painel (que também exclui
+   * `entregue`, ver `domain.ts#isReceivableStatus`): aqui é dívida de
+   * verdade, um pedido entregue com saldo em aberto conta (ver
+   * `domain.ts#isDebtStatus`). */
+  totalDevidoCents: number;
+  /** Soma de `adiantamentoCents` dos mesmos pedidos — quanto o cliente já
+   * pagou do que deve no total (não é "tudo que ele já pagou na vida",
+   * pedidos já quitados não entram porque não têm saldo em aberto). */
+  totalPagoCents: number;
+  /** Menor `paymentDueDate` entre os pedidos do cliente com saldo em
+   * aberto — `null` se nenhum pedido em aberto tem vencimento definido. */
+  proximoVencimento: string | null;
+  /** true se QUALQUER pedido em aberto do cliente já passou do
+   * `paymentDueDate` — ver `domain.ts#isOverdue` para a mesma regra do
+   * lado da aplicação (usada em testes sem banco). */
+  atrasado: boolean;
+  /** Os próprios pedidos com saldo em aberto do cliente (nunca vazio,
+   * dado o `HAVING` de `totalDevidoCents > 0`) — o painel linka direto
+   * para cada um, não só para a ficha do cliente. */
+  pedidosEmAberto: { id: string; number: number; saldoCents: number }[];
+}
+
+/**
+ * Clientes com saldo em aberto — base da seção "Clientes devendo" do
+ * painel. Só entra cliente com `totalDevidoCents > 0` (HAVING). Pedido
+ * `cancelado` nunca conta (`isDebtStatus`); todos os outros contam,
+ * incluindo `entregue` — ver comentário de `totalDevidoCents` acima.
+ */
+export async function listClientesComSaldoAReceber(): Promise<ClienteComSaldoAReceber[]> {
+  const { organizationId, withDb } = await withOrg();
+
+  return withDb((tx) =>
+    tx
+      .select({
+        clienteId: pedidos.customerId,
+        clienteName: clientes.name,
+        totalDevidoCents: sql<number>`coalesce(sum(${pedidos.saldoCents}), 0)::int`,
+        totalPagoCents: sql<number>`coalesce(sum(${pedidos.adiantamentoCents}), 0)::int`,
+        proximoVencimento: sql<
+          string | null
+        >`min(${pedidos.paymentDueDate}) filter (where ${pedidos.saldoCents} > 0)`,
+        atrasado: sql<boolean>`bool_or(${pedidos.paymentDueDate} < current_date and ${pedidos.saldoCents} > 0)`,
+        pedidosEmAberto: sql<
+          { id: string; number: number; saldoCents: number }[]
+        >`coalesce(json_agg(json_build_object('id', ${pedidos.id}, 'number', ${pedidos.number}, 'saldoCents', ${pedidos.saldoCents}) order by ${pedidos.number}) filter (where ${pedidos.saldoCents} > 0), '[]')`,
+      })
+      .from(pedidos)
+      .innerJoin(clientes, eq(clientes.id, pedidos.customerId))
+      .where(and(eq(pedidos.organizationId, organizationId), sql`${pedidos.status} != 'cancelado'`))
+      .groupBy(pedidos.customerId, clientes.name)
+      .having(sql`coalesce(sum(${pedidos.saldoCents}), 0) > 0`)
+      .orderBy(
+        sql`bool_or(${pedidos.paymentDueDate} < current_date and ${pedidos.saldoCents} > 0) desc`,
+        sql`sum(${pedidos.saldoCents}) desc`,
+      ),
+  );
+}
+
+export interface PrevisaoRecebimentos {
+  /** Soma de `saldoCents` de pedidos com `paymentDueDate` entre hoje e
+   * daqui a 30 dias (inclusive) — dinheiro que tem data pra entrar.
+   * NUNCA inclui atrasado (isso já é "Clientes devendo") nem pedido sem
+   * vencimento definido (não dá pra prever quando entra). */
+  proximos30DiasCents: number;
+  /** Saldo em aberto SEM `paymentDueDate` definido — existe, mas não
+   * entra em `proximos30DiasCents` porque não há data pra projetar.
+   * Mostrado à parte no painel como ressalva, nunca somado ao resto (ver
+   * docs/decisoes.md, "previsão de caixa"). */
+  semPrevisaoCents: number;
+}
+
+/**
+ * Base da seção "Previsão de caixa" do painel — só o lado de ENTRADAS
+ * (pedidos com saldo a receber). O lado de saídas vem de
+ * `financeiro#getPrevisaoDespesas`, composto junto na página (nenhum dos
+ * dois módulos importa o outro, mesmo padrão de sempre).
+ */
+export async function getPrevisaoRecebimentos(): Promise<PrevisaoRecebimentos> {
+  const { organizationId, withDb } = await withOrg();
+
+  return withDb(async (tx) => {
+    const [row] = await tx
+      .select({
+        proximos30DiasCents: sql<number>`coalesce(sum(${pedidos.saldoCents}) filter (
+          where ${pedidos.paymentDueDate} is not null
+            and ${pedidos.paymentDueDate} >= current_date
+            and ${pedidos.paymentDueDate} <= current_date + 30
+        ), 0)::int`,
+        semPrevisaoCents: sql<number>`coalesce(sum(${pedidos.saldoCents}) filter (
+          where ${pedidos.paymentDueDate} is null
+        ), 0)::int`,
+      })
+      .from(pedidos)
+      .where(
+        and(
+          eq(pedidos.organizationId, organizationId),
+          sql`${pedidos.status} != 'cancelado'`,
+          sql`${pedidos.saldoCents} > 0`,
+        ),
+      );
+
+    return {
+      proximos30DiasCents: row?.proximos30DiasCents ?? 0,
+      semPrevisaoCents: row?.semPrevisaoCents ?? 0,
+    };
+  });
+}
+
 export async function listPedidos(options?: {
   search?: string;
   /** Filtro por um único status (valor real do enum). */
@@ -98,6 +238,13 @@ export async function listPedidos(options?: {
    * painel, que não corresponde a um único valor do enum. Se ambos
    * `status` e `statusIn` forem passados, `statusIn` prevalece. */
   statusIn?: readonly PedidoStatusFilter[];
+  /** Só pedidos com saldo em aberto e `paymentDueDate` entre hoje e daqui
+   * a 30 dias — MESMO filtro de `getPrevisaoRecebimentos#proximos30DiasCents`,
+   * usado pela página `/pedidos?previsao=30dias` (link de "A receber" na
+   * Previsão de caixa do painel, pra mostrar exatamente quais pedidos
+   * compõem aquele número). Ignora `status`/`statusIn` se passado junto.
+   */
+  vencimentoProximos30Dias?: boolean;
   sort?: PedidoSort;
 }) {
   const { organizationId, withDb } = await withOrg();
@@ -113,7 +260,15 @@ export async function listPedidos(options?: {
       )!,
     );
   }
-  if (options?.statusIn) {
+  if (options?.vencimentoProximos30Dias) {
+    conditions.push(
+      sql`${pedidos.status} != 'cancelado'`,
+      sql`${pedidos.saldoCents} > 0`,
+      sql`${pedidos.paymentDueDate} is not null`,
+      sql`${pedidos.paymentDueDate} >= current_date`,
+      sql`${pedidos.paymentDueDate} <= current_date + 30`,
+    );
+  } else if (options?.statusIn) {
     conditions.push(inArray(pedidos.status, options.statusIn));
   } else if (options?.status) {
     conditions.push(eq(pedidos.status, options.status));
@@ -128,6 +283,7 @@ export async function listPedidos(options?: {
         totalCents: pedidos.totalCents,
         adiantamentoCents: pedidos.adiantamentoCents,
         saldoCents: pedidos.saldoCents,
+        paymentDueDate: pedidos.paymentDueDate,
         deliveryDate: pedidos.deliveryDate,
         createdAt: pedidos.createdAt,
         customerName: clientes.name,
@@ -135,7 +291,11 @@ export async function listPedidos(options?: {
       .from(pedidos)
       .innerJoin(clientes, eq(clientes.id, pedidos.customerId))
       .where(and(...conditions))
-      .orderBy(PEDIDO_ORDER_BY[options?.sort ?? "number_desc"]),
+      .orderBy(
+        options?.vencimentoProximos30Dias
+          ? sql`${pedidos.paymentDueDate} asc`
+          : PEDIDO_ORDER_BY[options?.sort ?? "number_desc"],
+      ),
   );
 }
 
@@ -155,6 +315,7 @@ export async function getPedidoById(id: string) {
         status: pedidos.status,
         totalCents: pedidos.totalCents,
         adiantamentoCents: pedidos.adiantamentoCents,
+        paymentDueDate: pedidos.paymentDueDate,
         saldoCents: pedidos.saldoCents,
         approvedAt: pedidos.approvedAt,
         startedAt: pedidos.startedAt,

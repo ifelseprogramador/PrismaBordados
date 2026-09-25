@@ -1,0 +1,1 @@
+ALTER TABLE "pedidos" ADD COLUMN "payment_due_date" date;

@@ -14,9 +14,10 @@ import {
 import { pedidoCounters, pedidoItens, pedidos } from "./schema";
 import {
   parseAdiantamentoFormData,
+  parsePedidoCreateFormData,
   parsePedidoHeaderFormData,
   parsePedidoItemFormData,
-  type PedidoHeaderInput,
+  type PedidoCreateInput,
 } from "./validation";
 
 export interface InsertResult extends ActionResult {
@@ -43,7 +44,7 @@ async function recalculateOrderTotal(tx: Database, pedidoId: string) {
   return totalCents;
 }
 
-export async function createPedidoRecord(data: PedidoHeaderInput): Promise<InsertResult> {
+export async function createPedidoRecord(data: PedidoCreateInput): Promise<InsertResult> {
   const { organizationId, log, withDb } = await withOrg();
   log.info("pedidos.criar");
 
@@ -75,7 +76,7 @@ export async function createPedido(
   formData: FormData,
 ): Promise<InsertResult> {
   const { log } = await withOrg();
-  const parsed = parsePedidoHeaderFormData(formData);
+  const parsed = parsePedidoCreateFormData(formData);
   if (!parsed.success) {
     log.warn("pedidos.criar.validacao_falhou", {
       fields: Object.keys(parsed.error.flatten().fieldErrors),
@@ -229,7 +230,11 @@ export async function registerAdiantamento(
   const result = await withDb((tx) =>
     tx
       .update(pedidos)
-      .set({ adiantamentoCents: parsed.data.adiantamentoCents, updatedAt: new Date() })
+      .set({
+        adiantamentoCents: parsed.data.adiantamentoCents,
+        paymentDueDate: parsed.data.paymentDueDate ?? null,
+        updatedAt: new Date(),
+      })
       .where(and(eq(pedidos.id, pedidoId), eq(pedidos.organizationId, organizationId)))
       .returning({ id: pedidos.id, totalCents: pedidos.totalCents }),
   );
@@ -247,6 +252,57 @@ export async function registerAdiantamento(
   log.info("pedidos.adiantamento.sucesso", { pedidoId });
   revalidatePath(`/pedidos/${pedidoId}`);
   return { ok: true };
+}
+
+export interface IncrementarAdiantamentoResult extends ActionResult {
+  adiantamentoCents?: number;
+  saldoCents?: number;
+}
+
+/**
+ * Soma um valor ao adiantamento já registrado (DELTA, não o novo total) —
+ * diferente de `registerAdiantamento` (que grava um total absoluto vindo
+ * do form da ficha do pedido). Usado pela orquestração que registra
+ * pagamento de cliente a partir de `/financeiro`
+ * (`app/(app)/financeiro/pagamento-cliente-actions.ts`), onde o valor
+ * natural digitado é "quanto está sendo pago agora". Nunca toca em
+ * `paymentDueDate` — não há campo de vencimento nesse fluxo.
+ */
+export async function incrementarAdiantamento(
+  pedidoId: string,
+  valorCents: number,
+): Promise<IncrementarAdiantamentoResult> {
+  const { organizationId, log, withDb } = await withOrg();
+
+  const result = await withDb((tx) =>
+    tx
+      .update(pedidos)
+      .set({
+        adiantamentoCents: sql`${pedidos.adiantamentoCents} + ${valorCents}`,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(pedidos.id, pedidoId), eq(pedidos.organizationId, organizationId)))
+      .returning({
+        id: pedidos.id,
+        adiantamentoCents: pedidos.adiantamentoCents,
+        saldoCents: pedidos.saldoCents,
+      }),
+  );
+
+  const [pedido] = result;
+  if (!pedido) {
+    log.warn("pedidos.adiantamento.incrementar.nao_encontrado", { pedidoId });
+    return { ok: false, message: "Pedido não encontrado." };
+  }
+
+  log.info("pedidos.adiantamento.incrementar.sucesso", { pedidoId, valorCents });
+  revalidatePath(`/pedidos/${pedidoId}`);
+  revalidatePath("/pedidos");
+  return {
+    ok: true,
+    adiantamentoCents: pedido.adiantamentoCents,
+    saldoCents: pedido.saldoCents ?? undefined,
+  };
 }
 
 const STATUS_ACTION_LABEL: Record<string, string> = {

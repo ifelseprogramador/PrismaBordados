@@ -22,6 +22,27 @@
       "when": 1790293718866,
       "tag": "0002_ancient_fenris",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790353322407,
+      "tag": "0003_nappy_captain_midlands",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790356720953,
+      "tag": "0004_bent_hex",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790357948532,
+      "tag": "0005_panoramic_blindfold",
+      "breakpoints": true
     }
   ]
 }

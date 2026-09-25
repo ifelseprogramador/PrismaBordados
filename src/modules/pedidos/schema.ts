@@ -76,6 +76,13 @@ export const pedidos = pgTable(
     // docs/decisoes.md). Atualizado pela aplicação sempre que um
     // recebimento é registrado.
     adiantamentoCents: integer("adiantamento_cents").notNull().default(0),
+    // Até quando o SALDO (não o total) precisa ser pago — diferente de
+    // `deliveryDate` (quando a peça fica pronta/é entregue): um cliente
+    // pode receber o pedido e só terminar de pagar depois. Opcional,
+    // definido junto do registro de adiantamento/pagamento
+    // (`AdiantamentoForm`) — ver `domain.ts#isOverdue` e
+    // `queries.ts#listClientesComSaldoAReceber`, usado pelo painel.
+    paymentDueDate: date("payment_due_date"),
     // Coluna gerada de verdade (ao contrário de totalCents): depende só
     // de colunas da própria linha (total - adiantamento), nunca fica
     // negativa na exibição (a aplicação também nunca deve deixar

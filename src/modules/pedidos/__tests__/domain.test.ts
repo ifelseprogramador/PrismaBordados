@@ -4,6 +4,8 @@ import {
   calculateOrderTotal,
   calculateSaldo,
   isAdiantamentoAboveTotal,
+  isDebtStatus,
+  isOverdue,
   isReceivableStatus,
   isTerminalStatus,
   isValidTransition,
@@ -123,5 +125,42 @@ describe("isReceivableStatus", () => {
     for (const status of emAndamento) {
       expect(isReceivableStatus(status)).toBe(true);
     }
+  });
+});
+
+describe("isDebtStatus", () => {
+  it("pedido cancelado nunca conta como dívida", () => {
+    expect(isDebtStatus("cancelado")).toBe(false);
+  });
+
+  it("pedido entregue CONTA como dívida (diferente de isReceivableStatus)", () => {
+    expect(isDebtStatus("entregue")).toBe(true);
+  });
+
+  it("estados em andamento contam como dívida", () => {
+    const emAndamento: PedidoStatus[] = ["orcamento", "aprovado", "em_producao", "pronto"];
+    for (const status of emAndamento) {
+      expect(isDebtStatus(status)).toBe(true);
+    }
+  });
+});
+
+describe("isOverdue", () => {
+  const hoje = new Date("2026-09-25T12:00:00");
+
+  it("atrasado quando o vencimento já passou e ainda há saldo", () => {
+    expect(isOverdue("2026-09-20", 5000, hoje)).toBe(true);
+  });
+
+  it("não atrasado quando o vencimento ainda não chegou", () => {
+    expect(isOverdue("2026-10-01", 5000, hoje)).toBe(false);
+  });
+
+  it("nunca atrasado se o saldo já foi quitado, mesmo com vencimento no passado", () => {
+    expect(isOverdue("2026-09-20", 0, hoje)).toBe(false);
+  });
+
+  it("nunca atrasado sem vencimento definido", () => {
+    expect(isOverdue(null, 5000, hoje)).toBe(false);
   });
 });

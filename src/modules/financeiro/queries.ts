@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, lte, lt, sql } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import { financeiroLancamentos } from "./schema";
 import { calculateLucro } from "./domain";
@@ -18,20 +18,32 @@ export interface ListLancamentosOptions {
   /** "YYYY-MM" — quando omitido, lista tudo. */
   month?: string;
   type?: "entrada" | "saida";
+  /** Só saídas já lançadas com `date` no FUTURO (depois de hoje, até 30
+   * dias) — mesmo filtro de `getPrevisaoDespesas`, usado pela página
+   * `/financeiro?previsao=30dias` (link de "A pagar" na Previsão de
+   * caixa do painel, pra mostrar exatamente quais lançamentos compõem
+   * aquele número). Ignora `month` se os dois forem passados. */
+  futuras?: boolean;
 }
 
 export async function listLancamentos(options?: ListLancamentosOptions) {
   const { organizationId, withDb } = await withOrg();
   const conditions = [eq(financeiroLancamentos.organizationId, organizationId)];
 
-  if (options?.month) {
+  if (options?.futuras) {
+    const today = new Date();
+    const in30Days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30);
+    conditions.push(eq(financeiroLancamentos.type, "saida"));
+    conditions.push(gt(financeiroLancamentos.date, toDateString(today)));
+    conditions.push(lte(financeiroLancamentos.date, toDateString(in30Days)));
+  } else if (options?.month) {
     const [year, month] = options.month.split("-").map(Number);
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 1);
     conditions.push(gte(financeiroLancamentos.date, toDateString(start)));
     conditions.push(lt(financeiroLancamentos.date, toDateString(end)));
   }
-  if (options?.type) {
+  if (options?.type && !options?.futuras) {
     conditions.push(eq(financeiroLancamentos.type, options.type));
   }
 
@@ -122,4 +134,36 @@ export async function getEntradasSaidasPorMes(months = 6): Promise<MesEntradasSa
     });
   }
   return result;
+}
+
+export interface PrevisaoDespesas {
+  /** Soma de lançamentos `saida` já registrados com `date` no FUTURO
+   * (depois de hoje, até 30 dias) — não é uma despesa recorrente
+   * automática nem um "contas a pagar" de verdade, é só o que o usuário
+   * já lançou adiantado (ex.: uma despesa fixa do mês que vem digitada
+   * hoje). Ver docs/decisoes.md, "previsão de caixa" — limitação
+   * documentada ali. */
+  proximos30DiasCents: number;
+}
+
+/** Base do lado de SAÍDAS da seção "Previsão de caixa" do painel — o
+ * lado de entradas vem de `pedidos#getPrevisaoRecebimentos`, composto
+ * junto na página (nenhum dos dois módulos importa o outro). */
+export async function getPrevisaoDespesas(): Promise<PrevisaoDespesas> {
+  const { organizationId, withDb } = await withOrg();
+
+  return withDb(async (tx) => {
+    const [row] = await tx
+      .select({
+        proximos30DiasCents: sql<number>`coalesce(sum(${financeiroLancamentos.amountCents}) filter (
+          where ${financeiroLancamentos.type} = 'saida'
+            and ${financeiroLancamentos.date} > current_date
+            and ${financeiroLancamentos.date} <= current_date + 30
+        ), 0)::int`,
+      })
+      .from(financeiroLancamentos)
+      .where(eq(financeiroLancamentos.organizationId, organizationId));
+
+    return { proximos30DiasCents: row?.proximos30DiasCents ?? 0 };
+  });
 }

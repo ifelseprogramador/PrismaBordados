@@ -7,6 +7,13 @@
  * declarar uma foreign key.
  */
 export type { Cliente } from "./schema.types";
+export { CLIENTE_ANONIMIZADO_NOME } from "./schema";
 export { clienteSchema, type ClienteInput } from "./validation";
 export { listClientes, getClienteById, listClientesForSelect } from "./queries";
-export { createCliente, updateCliente, deleteCliente, type InsertResult } from "./actions";
+export {
+  createCliente,
+  updateCliente,
+  deleteCliente,
+  anonymizeCliente,
+  type InsertResult,
+} from "./actions";

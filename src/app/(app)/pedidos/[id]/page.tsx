@@ -101,8 +101,10 @@ export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[
             <span className="font-medium">{formatCents(pedido.totalCents)}</span>
           </div>
           <AdiantamentoForm
+            key={pedido.updatedAt.toString()}
             pedidoId={pedido.id}
             adiantamentoCents={pedido.adiantamentoCents}
+            paymentDueDate={pedido.paymentDueDate}
             action={registrarRecebimentoPedido.bind(null, pedido.id)}
           />
           <div className="flex justify-between border-t pt-3">

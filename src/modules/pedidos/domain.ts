@@ -79,3 +79,29 @@ export function isAdiantamentoAboveTotal(totalCents: Cents, adiantamentoCents: C
 export function isReceivableStatus(status: PedidoStatus): boolean {
   return !isTerminalStatus(status);
 }
+
+/**
+ * Verdadeiro quando um pedido conta como "devido" na visão por cliente do
+ * painel (`queries.ts#listClientesComSaldoAReceber`) — regra DIFERENTE de
+ * `isReceivableStatus`: aqui é dívida de verdade (dinheiro que falta
+ * entrar), não pipeline de venda, então um pedido `entregue` com saldo em
+ * aberto CONTA (é justamente o caso mais comum de cobrança em atraso — a
+ * peça já foi entregue, falta só o cliente terminar de pagar). Só
+ * `cancelado` nunca conta.
+ */
+export function isDebtStatus(status: PedidoStatus): boolean {
+  return status !== "cancelado";
+}
+
+/** Verdadeiro quando o saldo em aberto de um pedido já passou do prazo
+ * combinado — `saldoCents <= 0` (quitado) nunca está atrasado, mesmo com
+ * `paymentDueDate` no passado. `hoje` é injetado (não `new Date()` direto)
+ * pra a função ficar testável sem mockar o relógio. */
+export function isOverdue(
+  paymentDueDate: string | null,
+  saldoCents: Cents,
+  hoje: Date = new Date(),
+): boolean {
+  if (saldoCents <= 0 || !paymentDueDate) return false;
+  return new Date(`${paymentDueDate}T00:00:00`) < hoje;
+}

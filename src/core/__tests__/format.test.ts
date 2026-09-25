@@ -9,6 +9,13 @@ describe("formatDate", () => {
   it("aceita string ISO", () => {
     expect(formatDate("2026-12-25T12:00:00Z")).toBe("25/12/2026");
   });
+
+  it("data pura (coluna `date` do Postgres, sem hora) não perde um dia em fuso atrás de UTC", () => {
+    // Bug real: "2026-09-26" interpretado como meia-noite UTC virava
+    // 25/09 em qualquer fuso do Brasil (UTC-3) ao formatar no horário
+    // local — precisa ser tratado como horário local, não UTC.
+    expect(formatDate("2026-09-26")).toBe("26/09/2026");
+  });
 });
 
 describe("formatDateTime", () => {

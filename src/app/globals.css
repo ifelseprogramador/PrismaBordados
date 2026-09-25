@@ -39,6 +39,20 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* Aliases semânticos pro painel (KPIs, meters). `success` reaproveita
+     o `chart-3` já existente (verde, hue 145) — `destructive` já cobre
+     "negativo/atrasado". `warning` é uma cor NOVA (não `chart-5`: hue 20
+     é vermelho-alaranjado, validado com scripts/validate_palette.js
+     contra `destructive` e ficou indistinguível — ΔE normal-vision 8.4,
+     abaixo do piso de 15; ver docs/decisoes.md). `--warning` (definida
+     abaixo, hue ~75/85) foi validada no lugar: ΔE normal-vision >= 16
+     contra `destructive` e `success` em ambos os modos, resultado só
+     WARN (não FAIL) na separação CVD contra `destructive` no dark —
+     aceitável com a mesma mitigação já usada no gráfico de entradas x
+     saídas: cor nunca é o único jeito de identificar o dado, todo uso
+     aqui tem rótulo de texto ao lado (nunca um "dot" sozinho). */
+  --color-success: var(--chart-3);
+  --color-warning: var(--warning);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -70,6 +84,9 @@
   --accent: oklch(0.94 0.03 260);
   --accent-foreground: oklch(0.3 0.08 260);
   --destructive: oklch(0.577 0.245 27.325);
+  /* Âmbar — ver comentário em `--color-warning` acima (validado contra
+     `destructive`/`success` com scripts/validate_palette.js). */
+  --warning: oklch(0.75 0.16 75);
   --border: oklch(0.9 0.01 260);
   --input: oklch(0.9 0.01 260);
   --ring: oklch(0.5 0.15 260);
@@ -105,6 +122,7 @@
   --accent: oklch(0.3 0.05 260);
   --accent-foreground: oklch(0.97 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --warning: oklch(0.8 0.16 85);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.65 0.18 260);

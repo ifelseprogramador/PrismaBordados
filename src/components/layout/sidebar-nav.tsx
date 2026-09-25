@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DatabaseBackup, LayoutDashboard } from "lucide-react";
+import { DatabaseBackup, LayoutDashboard, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveIcon } from "@/core/resolve-icon";
 import type { ModuleDefinition } from "@/core/registry";
@@ -30,6 +30,7 @@ export function SidebarNav({
       icon: resolveIcon(m.iconName),
     })),
     { slug: "backup", label: "Backup", href: "/backup", icon: DatabaseBackup },
+    { slug: "lgpd", label: "Privacidade (LGPD)", href: "/lgpd", icon: ShieldCheck },
   ];
 
   return (

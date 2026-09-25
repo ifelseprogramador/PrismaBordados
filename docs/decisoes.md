@@ -573,6 +573,71 @@ Cada card de KPI do painel (`Pedidos em aberto`, `Aguardando aprovação`,
 número era só uma estatística solta, sem jeito de ver quais pedidos
 exatamente a compõem.
 
+## 2026-09-25 (cont.) — Checklist de LGPD + direitos do titular no módulo `clientes`
+
+Criado `docs/lgpd-checklist.md`: status item a item da LGPD (direitos do
+titular, base legal, registro de operações, segurança, aviso de
+privacidade, DPO, retenção, incidente, sub-processadores), separando o
+que é código (implementado nesta entrada) do que é decisão de
+negócio/jurídica que nenhum agente resolve sozinho (razão social/CNPJ
+real, nome do encarregado, prazo de retenção definitivo, texto legal
+revisado por advogado).
+
+Implementado:
+
+- **Eliminação (Art. 18, VI)**: `anonymizeCliente` (`modules/clientes/actions.ts`)
+  sobrescreve nome/documento/telefone/endereço/e-mail e marca
+  `clientes.anonymizedAt` (coluna nova) — a linha continua existindo só
+  para não quebrar a FK `pedidos.customerId` (`onDelete: "restrict"`).
+  `deleteCliente` (DELETE de verdade) continua existindo para o caso sem
+  histórico nenhum. A escolha entre os dois é feita ANTES de chamar
+  `clientes` — `app/(app)/clientes/[id]/privacy-actions.ts#solicitarExclusaoCliente`
+  consulta `pedidos` (`listPedidosByClienteId`, novo) e decide, porque
+  `clientes` não pode importar `pedidos` (regra 8, `src/modules/README.md`).
+  Mesmo padrão de orquestração fina fora dos dois módulos já usado em
+  `financeiro-actions.ts` (ver decisão "Orquestração pedidos↔financeiro").
+  `updateCliente` passou a recusar editar um cliente já anonimizado
+  (`isNull(clientes.anonymizedAt)` no `where`) — defesa server-side além
+  de a UI esconder o formulário.
+- **Portabilidade (Art. 18, V)**: `exportarDadosCliente` (mesmo arquivo
+  de orquestração) devolve cadastro + resumo dos pedidos como JSON; a UI
+  (`modules/clientes/components/cliente-privacy-actions.tsx`) baixa isso
+  como arquivo.
+- **Registro de operações (Art. 37)**: tabela nova `lgpd_request_log`
+  (`db/schema/privacy.ts`) + `recordLgpdAction` (`core/audit-log.ts`),
+  gravado dentro da MESMA transação da operação (nunca um sem o outro).
+  RLS própria em `migrations-custom/0007_lgpd_rls.sql` — deliberadamente
+  SEM policy de UPDATE/DELETE (diferente do `apply_org_rls` padrão do
+  resto do projeto): um log de conformidade que a própria organização
+  auditada pudesse apagar não provaria nada. Diferente de `audit_log`
+  (`db/schema/live-support.ts`), que é só do admin da plataforma —
+  `lgpd_request_log` é visível pela PRÓPRIA organização (ela precisa
+  poder demonstrar conformidade se for auditada).
+- **Aviso de privacidade**: página nova `/privacidade`
+  (`app/privacidade/page.tsx`), adicionada a `PUBLIC_PATHS` em
+  `core/supabase/middleware.ts` (só tinha `/login` antes) — precisa ser
+  legível sem login. Conteúdo é um ESQUELETO com seções marcadas
+  `[PREENCHER]` onde a decisão é da empresa (razão social, prazos,
+  nome do encarregado), não texto jurídico pronto para publicar.
+  Linkada no rodapé de `(auth)/login/page.tsx`.
+
+Migration do drizzle-kit gerada (`0003_nappy_captain_midlands.sql`,
+tabela `lgpd_request_log` + coluna `clientes.anonymized_at`) mas **não
+aplicada** — mesma situação já registrada acima ("Onde as migrations do
+Drizzle-kit para os 3 módulos... FOI GERADA... mas nunca aplicada"),
+só que agora `.env.local` TEM credenciais reais de Supabase configuradas
+(ver "Validado de ponta a ponta"), então aplicar exige rodar
+`npm run db:migrate` deliberadamente contra esse projeto — não rodado
+nesta sessão sem confirmação explícita do usuário, por ser uma alteração
+de schema num banco que pode já ter dado real.
+
+Fora do escopo desta entrada (ver "Pendências técnicas" em
+`docs/lgpd-checklist.md`): página de configurações de privacidade por
+organização (o aviso hoje é estático, não lê dado da organização), cron
+de retenção automática (depende do prazo ser decidido primeiro),
+criptografia de CPF/CNPJ/endereço em repouso, log de LEITURA (só
+escrita é registrada hoje).
+
 Adicionados hints (`<Hint>`, já existente em `core`) em: CPF/CNPJ do
 cliente (a validação confere dígito verificador de verdade, não só
 formato), adiantamento do pedido (é o TOTAL já recebido, não o valor de
@@ -581,3 +646,331 @@ manual desta sessão), item de catálogo no form de pedido (o que o
 preenchimento automático faz), preço padrão do catálogo (é só sugestão,
 o valor final do pedido continua editável), e nota fiscal (como o
 sistema decide NF-e vs. NFS-e por item).
+
+## 2026-09-25 — `registerModule` vira upsert por `slug` (bug de HMR, não de LGPD)
+
+Erro reportado pelo usuário depois da entrega de LGPD: React acusando
+"Encountered two children with the same key, `clientes`" no menu lateral
+(`sidebar-nav.tsx`). Não era bug na feature de LGPD em si — era um bug
+latente em `core/registry.ts#registerModule` (herdado do BaseERP), que
+fazia só `MODULES.push(definition)` num array module-level. Os edits
+desta sessão em `modules/clientes/*` e `modules/pedidos/*` dispararam um
+Fast Refresh do Turbopack que reavaliou `core/load-modules.ts` sem
+reiniciar o processo Node — cada `modules/<modulo>/module.ts` roda de
+novo, e o `push` puro empilhava o mesmo `slug` de novo a cada
+reavaliação, sem limite, pelo tempo de vida do `next dev`. Não afeta
+produção (processo novo por deploy).
+
+Corrigido trocando `push` por upsert (`findIndex` por `slug`, substitui
+se já existir). É peça de `core/`, replicado para
+`base-erp/docs/decisoes.md` (mesma data) pela regra de manutenção.
+
+## 2026-09-25 (cont.) — Configurações de LGPD por organização (`/lgpd`)
+
+Pedido do usuário: o Prisma é multi-tenant (cada organização é uma
+empresa de bordado diferente, cliente do sistema) — um único texto fixo
+de aviso de privacidade não serve, cada organização precisa do próprio
+CNPJ, encarregado e prazo de retenção editáveis.
+
+Criada tabela `organization_privacy_settings` (`db/schema/privacy.ts`,
+uma linha por organização, "sem linha" = campos vazios + prazo padrão de
+5 anos — mesmo padrão de `organization_backup_settings`) e um pacote
+`core/privacy/` (settings.ts, validation.ts, actions.ts, types.ts,
+components/) com uma tela nova em `/lgpd`
+(`app/(app)/lgpd/page.tsx`), linkada fixa no menu lateral (mesmo padrão
+de "Backup" em `sidebar-nav.tsx` — não é módulo `registerModule`
+desligável via `/admin`, porque conformidade não deveria ser opcional
+por organização).
+
+A tela tem dois blocos: um formulário (razão social, CNPJ — validado
+com `core/document.ts#isValidCnpj` —, endereço, nome/contato do
+encarregado, prazo de retenção) e um preview do aviso de privacidade já
+com esses dados preenchidos, com botão "Copiar texto"
+(`privacy-notice-preview.tsx`) — a organização copia e publica nos
+canais que ela usa com os PRÓPRIOS clientes (site, WhatsApp, impresso),
+porque os clientes da empresa de bordado nunca fazem login no Prisma
+(diferente de um SaaS B2C, aqui não existe uma "página pública por
+tenant" nativa).
+
+`retentionYears` tem validação de mínimo (`LGPD_MIN_RETENTION_YEARS = 5`,
+`db/schema/privacy.ts`) — não deixa configurar abaixo do prazo de
+prescrição tributária do CTN. O valor hoje é só declarativo: nenhum cron
+lê `retentionYears` ainda para anonimizar automaticamente (fica como
+pendência em `docs/lgpd-checklist.md`).
+
+`app/privacidade/page.tsx` (pública) deixou de fingir ser o aviso de uma
+empresa específica — reescrita para explicar o funcionamento multi-tenant
+e apontar para `/lgpd` quem administra uma organização.
+
+Dois cuidados técnicos replicando bugs já corrigidos nesta sessão:
+`LGPD_MIN_RETENTION_YEARS`/`PrivacySettings` vivem em `core/privacy/types.ts`
+(sem `"server-only"`), não em `settings.ts` — um Client Component
+(`privacy-settings-form.tsx`) importando um arquivo `"server-only"`
+quebra o bundle do cliente, mesma causa raiz do bug de
+`"use server"`/const corrigido antes em `modules/clientes/actions.ts`.
+
+Migration do drizzle-kit gerada (`0004_bent_hex.sql`, tabela
+`organization_privacy_settings`) + RLS custom
+(`migrations-custom/0008_lgpd_settings_rls.sql`, `apply_org_rls` padrão —
+diferente de `lgpd_request_log`, aqui é configuração normal, a própria
+organização precisa poder atualizar).
+
+## 2026-09-25 (cont.) — Vencimento do saldo por pedido + "Clientes devendo" no painel
+
+Pedido do usuário: ao registrar adiantamento/pagamento, poder indicar até
+quando o saldo restante precisa ser pago, e o painel mostrar quem está
+devendo, quanto, quanto já pagou e se está atrasado.
+
+`pedidos.paymentDueDate` (coluna nova, `date` opcional) — editável junto
+do `AdiantamentoForm` (mesmo formulário que já registra o adiantamento,
+já implicitamente ligado a um cliente via `pedido.customerId` — não foi
+necessário adicionar seleção de cliente em lugar nenhum nesse fluxo,
+"indicar qual cliente" já é resolvido pelo pedido pertencer a um
+cliente). Vazio limpa o vencimento (`parsed.data.paymentDueDate ?? null`).
+
+`domain.ts#isOverdue(paymentDueDate, saldoCents, hoje)` — pura, testada
+sem banco; nunca atrasado se o saldo já foi quitado, mesmo com data no
+passado.
+
+`domain.ts#isDebtStatus` — regra NOVA e DIFERENTE de `isReceivableStatus`
+(que já existia): `isReceivableStatus` exclui `entregue` do pipeline de
+vendas (decisão antiga, "cobrança sai do pipeline"); `isDebtStatus`
+inclui `entregue` (só exclui `cancelado`), porque dívida de verdade
+(dinheiro que falta entrar) é diferente de pipeline de venda — pedido
+entregue e não pago é justamente o caso mais comum de cobrança
+atrasada. As duas funções continuam separadas de propósito, mesmo
+padrão de "lucro vs. saldo a receber nunca somados" já documentado
+acima.
+
+`queries.ts#listClientesComSaldoAReceber()` — agregação por cliente
+(`group by customer_id`, `having sum(saldo_cents) > 0`) via SQL
+(`sum`/`min ... filter`/`bool_or`), não em memória: total devido, total
+pago, próximo vencimento (entre pedidos com saldo aberto) e se algum
+está atrasado. Nova seção "Clientes devendo" no painel
+(`app/(app)/page.tsx`), separada do KPI "Saldo a receber" (que continua
+usando `isReceivableStatus`) — os dois números podem divergir de
+propósito (um pedido entregue e não pago soma em "Clientes devendo" mas
+não em "Saldo a receber"), então nunca devem ser confundidos como o
+mesmo dado.
+
+Bug pego pelos próprios testes: `emptyToUndefined` (`validation.ts`) só
+tratava string vazia (`""`), não `null` (campo ausente do `FormData` —
+caso real de um form HTML sem o campo preenchido, diferente de "preenchido
+e depois apagado"). Corrigido para tratar os dois — afetava também
+`deliveryDate`/`deliveryTime` do form de pedido, não só o campo novo.
+
+## 2026-09-25 (cont.) — Adiantamento na criação do pedido + pagamento de cliente a partir do Financeiro
+
+Dois pedidos do usuário, mesma linha de trabalho do vencimento por
+pedido/"Clientes devendo":
+
+**1. Adiantamento inicial na criação do pedido.** `PedidoForm` ganhou
+campos opcionais "Adiantamento recebido agora" e "Vencimento do saldo",
+ao lado dos campos de entrega já existentes. Schema separado
+(`validation.ts#pedidoCreateSchema`, extende `pedidoHeaderSchema`) — de
+propósito NÃO reaproveitado por `updatePedidoHeader` (edição do
+cabeçalho depois de criado nunca deve poder tocar em
+`adiantamentoCents`; isso é só de `AdiantamentoForm`/`registerAdiantamento`
+a partir daqui). Nova orquestração `app/(app)/pedidos/novo/actions.ts#criarPedidoComAdiantamento`
+(fora do módulo, mesmo padrão de `financeiro-actions.ts`): cria o pedido
+e, se nasceu com adiantamento > 0, cria também o lançamento de `entrada`
+correspondente em `financeiro` — sem isso, dinheiro recebido no fechamento
+do pedido não apareceria em nenhum lugar do financeiro.
+
+**2. Registrar pagamento de cliente a partir de `/financeiro`.** Nova
+seção "Receber pagamento de cliente" (`app/(app)/financeiro/pagamento-cliente-form.tsx`),
+acima do lançamento manual genérico: lista só clientes com saldo em
+aberto (`pedidos#listClientesComSaldoAReceber`, já existia pro painel),
+cascata pro select de qual PEDIDO daquele cliente está sendo pago (um
+cliente pode ter mais de um em aberto ao mesmo tempo), valor e data.
+Orquestração em `app/(app)/financeiro/pagamento-cliente-actions.ts#registrarPagamentoCliente`.
+
+Precisou de uma peça nova em `pedidos`: `actions.ts#incrementarAdiantamento`
+soma um DELTA ao adiantamento já registrado (diferente de
+`registerAdiantamento`, que grava um TOTAL absoluto vindo do form da
+ficha do pedido) — o valor natural de quem está lançando um pagamento a
+partir do Financeiro é "quanto está pagando agora", não o agregado.
+Nunca mexe em `paymentDueDate` (esse fluxo não tem campo de vencimento).
+
+Os dois fluxos (ficha do pedido vs. Financeiro) convergem pro mesmo
+lançamento em `financeiro_lancamentos` (`referenceType: "pedido"`) e pro
+mesmo `pedidos.adiantamentoCents` — só a origem/UX muda.
+
+## 2026-09-25 (cont.) — "Clientes devendo" no painel linka também os pedidos
+
+`listClientesComSaldoAReceber` ganhou `pedidosEmAberto` (array por
+cliente, via `json_agg(...) filter (where saldo_cents > 0)`) — a seção
+"Clientes devendo" do painel agora linka pra cada pedido em aberto do
+cliente (`#123`, `#145`...), não só pra ficha do cliente.
+
+## 2026-09-25 (cont.) — Passe de visual no painel + cor `--warning` nova (validada)
+
+Pedido do usuário: "deixar o visual do dash mais bonito, mantendo a
+clareza dos dados". Skill de dataviz consultada antes de mexer em
+qualquer cor (`references/choosing-a-form.md`, `marks-and-anatomy.md`,
+`color-formula.md`).
+
+Mudanças em `app/(app)/page.tsx`: KPIs ganharam `tone` (cor por assunto —
+pedidos/clientes em azul via `primary`, entradas/lucro positivo em
+verde via `success`, saídas/atrasado em vermelho via `destructive`,
+"a receber"/"clientes devendo" em âmbar via `warning` novo), ícone
+tintado permanente (não só no hover), leve elevação no hover
+(`hover:-translate-y-0.5 hover:shadow-md`), grade de KPIs quebrada em
+duas seções rotuladas ("Pedidos e clientes" / "Financeiro do mês"),
+"Lucro do mês" com tom dinâmico (verde se >= 0, vermelho se negativo —
+o sinal já vem no valor formatado também, nunca só a cor). Cabeçalho de
+card ganhou o mesmo selo de ícone tintado (`IconBadge`) usado nos KPIs,
+pra tudo no painel seguir a mesma linguagem visual. "Clientes devendo"
+ganhou: total geral em aberto no cabeçalho (hero pequeno), um meter
+(barra de progresso pago/devido) por cliente, e o badge "Atrasado"
+promovido pra antes do nome (leitura mais rápida). Toda mudança manteve
+ou reforçou rótulo de texto ao lado de qualquer cor — nunca um "dot"
+sozinho carregando significado.
+
+**Cor nova, validada**: tentei reaproveitar `chart-5` (hue 20) como
+"warning" — `scripts/validate_palette.js` (skill de dataviz) acusou
+FAIL: convertido pra hex, `chart-5` é `#f04c5a`/vermelho-salmão, quase
+idêntico a `destructive` (`#e7000b`), ΔE normal-vision 8.4 (abaixo do
+piso de 15 — indistinguível mesmo com visão de cor normal). Substituído
+por uma cor âmbar dedicada (`--warning`, `oklch(0.75 0.16 75)` no claro,
+`oklch(0.8 0.16 85)` no escuro — hue ~75-85, bem separado do vermelho de
+`destructive` em ~22-27) validada contra `destructive`/`success`/
+`primary` nos dois modos: piso normal-vision passa em ambos (>= 16),
+CVD adjacente só WARN (não FAIL) entre `destructive`/`success` no modo
+escuro — mesma classe de trade-off já aceita em
+`entradas-saidas-chart.tsx` ("Recharts confinado a
+`modules/financeiro/components`"), mitigada do mesmo jeito: cor nunca é
+o único identificador, todo uso aqui tem rótulo de texto do lado. Ver
+comentário em `globals.css` junto de `--color-warning`.
+
+Não rodei o app num navegador de verdade nesta sessão (rota autenticada,
+sem sessão de login disponível aqui) — validei build de produção +
+typecheck + lint, mas a checagem visual final da skill ("renderizar e
+olhar") fica pendente pra quando alguém abrir o painel de verdade.
+
+## 2026-09-25 (cont.) — Dois bugs reportados pelo usuário + previsão de caixa
+
+**Bug 1 — aviso do Base UI em `AdiantamentoForm`.** "A component is
+changing the default value state of an uncontrolled FieldControl after
+being initialized." Causa: o `<input type="date">` de `paymentDueDate`
+usa `defaultValue` (campo não controlado, ver memória do usuário sobre
+nunca apagar dado válido — `defaultValue` é a técnica certa). Depois de
+um salvamento bem-sucedido, `revalidatePath` faz a página buscar o
+pedido de novo e `AdiantamentoForm` recebe um `paymentDueDate` NOVO via
+prop, mas sem remount (sem `key` mudando), o Base UI detecta a
+divergência entre o valor inicial e o atual do campo não controlado e
+avisa. Corrigido com `key={pedido.updatedAt.toString()}` no
+`<AdiantamentoForm>` (`app/(app)/pedidos/[id]/page.tsx`) — mesmo padrão
+já usado em `ClienteForm`. Isso é DIFERENTE de resetar em erro de
+validação (nunca fazer): aqui é depois de SALVAR com sucesso, quando os
+campos devem mesmo refletir o valor confirmado pelo servidor.
+
+**Bug 2 — "Vence" no painel mostrando um dia a menos.** Causa: colunas
+`date` do Postgres (sem hora) chegam como string `"YYYY-MM-DD"`; `new
+Date("YYYY-MM-DD")` interpreta como meia-noite UTC, que em qualquer fuso
+atrás de UTC (Brasil inteiro) já virou o dia anterior ao formatar no
+horário local. `core/format.ts#formatDate`/`formatDateTime`/`formatRelative`
+agora detectam esse formato (`parseDate`, regex `YYYY-MM-DD`) e tratam
+como horário LOCAL (`T00:00:00`, sem `Z`) — mesmo ajuste que
+`domain.ts#isOverdue` já fazia, mas que faltava no formatador usado pela
+UI. Esse bug afetava qualquer `date` puro exibido no sistema
+(`deliveryDate`, `orderDate`, `nextDueDate` de organização em
+`/admin`), não só `paymentDueDate` — corrigido de uma vez, centralizado.
+Teste novo em `core/__tests__/format.test.ts` cobrindo o caso.
+
+**Previsão de caixa.** Pedido do usuário: uma métrica de quanto está pra
+entrar/sair, pra projeção/orçamento. Nova seção no painel ("Previsão de
+caixa — próximos 30 dias"), 3 números: A receber (soma de
+`pedidos.saldoCents` com `paymentDueDate` entre hoje e +30 dias — nunca
+inclui atrasado, isso já é "Clientes devendo", nem pedido sem
+vencimento), A pagar, Saldo previsto (A receber − A pagar, tom
+verde/vermelho dinâmico). `pedidos#getPrevisaoRecebimentos` (novo) +
+`financeiro#getPrevisaoDespesas` (novo), compostos na página (nenhum dos
+dois módulos importa o outro).
+
+**Limitação documentada, não escondida**: "A pagar" só soma saídas que o
+usuário JÁ lançou em `financeiro` com `date` no futuro — o schema atual
+não tem nenhum conceito de despesa recorrente/agendada (não existe
+"contas a pagar" de verdade). Fica visível no `Hint` do card e aqui:
+se o usuário quiser uma previsão de saída mais completa (aluguel todo
+mês, por exemplo, sem precisar lançar manualmente toda vez), isso é uma
+feature nova (despesas recorrentes), fora do escopo desta entrega.
+`pedidos#getPrevisaoRecebimentos` também expõe `semPrevisaoCents` (saldo
+aberto sem vencimento definido) — mostrado como ressalva textual, nunca
+somado ao número principal.
+
+## 2026-09-25 (cont.) — Rastreabilidade da Previsão de caixa + hints reorganizados
+
+Pedido do usuário: dá pra clicar em "A receber"/"A pagar" da Previsão de
+caixa e ver exatamente quais registros compõem aquele número; hints
+específicos de cada estatística ficam ao lado dela (não um hint genérico
+no título do card, que virou uma `CardDescription` curta); e explicar
+por que "Saldo a receber" (KPI já existente) é diferente de "A receber"
+(Previsão) — não é bug, são duas perguntas diferentes.
+
+**Rastreabilidade**: `pedidos#listPedidos` ganhou
+`vencimentoProximos30Dias` (mesmo filtro exato de
+`getPrevisaoRecebimentos`) — `/pedidos?previsao=30dias` mostra só esses
+pedidos, com coluna "Vencimento" (+ badge "Atrasado" se aplicável) no
+lugar da coluna "Entrega" nesse modo, e um banner explicando o filtro
+com link "Limpar filtro". `financeiro#listLancamentos` ganhou `futuras`
+(mesmo filtro de `getPrevisaoDespesas`) — `/financeiro?previsao=30dias`
+mostra só as saídas futuras que compõem o número, mesmo padrão de
+banner. Os dois números da Previsão de caixa agora são links pra essas
+views filtradas.
+
+**Hints movidos**: o hint único que ficava no título do card "Previsão
+de caixa" virou um `Hint` em cada estatística (`A receber`/`A pagar`),
+mais específico. O título do card agora tem só uma `CardDescription`
+curta e geral ("uma projeção do que deve entrar e sair... diferente do
+resto do painel, que mostra o que já aconteceu").
+
+**"Saldo a receber" vs. "A receber"**: não é erro — são métricas
+DIFERENTES de propósito (mesma família de decisão já documentada acima,
+"`isReceivableStatus` vs. `isDebtStatus`"). "Saldo a receber" (KPI,
+`isReceivableStatus`) soma todo pedido NÃO terminal, sem olhar
+vencimento — é "pipeline". "A receber" (Previsão, `getPrevisaoRecebimentos`)
+só conta quem tem vencimento marcado nos próximos 30 dias e TAMBÉM
+inclui pedido `entregue` com saldo aberto — é "o que tem data pra
+entrar". Adicionado um `Hint` no KPI "Saldo a receber" explicando essa
+diferença, pra ninguém achar que é inconsistência.
+
+**Problema técnico resolvido no caminho**: `Hint` renderiza um
+`<button>`; colocar um `Hint` dentro de um `<Link>` (que vira `<a>`)
+quebra HTML (`<button>` não pode ficar dentro de `<a>`). Em "A
+receber"/"A pagar" da Previsão, resolvido separando rótulo+hint (fora do
+link) do valor (dentro do link). No `KpiCard` (usado por "Saldo a
+receber"), resolvido diferente — o card inteiro precisa continuar
+clicável, então o `<Link>` virou uma camada `absolute inset-0` DENTRO do
+`Card` (não mais o `Card` inteiro dentro do `<Link>`), com o conteúdo
+visível por cima em `pointer-events-none` exceto a linha do rótulo
+(que reativa `pointer-events-auto` só quando há `hint`, pra não tirar
+clique do resto dos KPIs que não têm hint nenhum).
+
+## 2026-09-25 (cont.) — "A receber"/"A pagar" com elevação; bug de stacking nos hints
+
+Pedido do usuário: em vez de sublinhado no link, "A receber"/"A pagar"
+da Previsão de caixa devem elevar no hover igual aos outros cards do
+painel — criado `PrevisaoStat`, uma "mini-card" com a mesma elevação de
+`KpiCard` (`hover:-translate-y-0.5 hover:shadow-md`), moldura tintada
+por `tone`. Sem `href` (caso do "Saldo previsto") vira só texto
+estático, sem moldura — só o que é clicável parece clicável.
+
+**Bug encontrado no caminho, reportado pelo usuário**: os hints desses
+cards (e do KPI "Saldo a receber") não respondiam ao hover. Causa: a
+técnica de "link em camada" (`<Link className="absolute inset-0" />`
+dentro do card, conteúdo por cima) tinha um furo — um elemento
+`position: absolute` pinta ACIMA de conteúdo não-posicionado no mesmo
+contexto de empilhamento, independente da ordem no DOM. Isso significa
+que o `Link` ficava visualmente por cima do botão do `Hint` mesmo com
+`pointer-events-auto` nele: o navegador faz hit-test pelo elemento do
+TOPO visual, não só por quem tem `pointer-events` habilitado — então o
+hover nunca alcançava o botão. `pointer-events` sozinho não resolve
+esse tipo de sobreposição; precisa também tirar o conteúdo do fluxo
+normal pra ele competir na mesma "camada" de empilhamento. Corrigido
+dando ao wrapper do conteúdo (`CardContent` no `KpiCard`, a `div`
+interna no `PrevisaoStat`) `relative z-10` — agora ele também é
+posicionado, com `z-index` explicitamente maior que o do `Link` (que
+fica em 0/auto), e pinta por cima de verdade. Comentário atualizado nos
+dois componentes com essa pegadinha, pra não repetir o erro numa
+variação futura desse padrão.

@@ -22,8 +22,10 @@ export {
   listLancamentos,
   getFinanceiroDashboardSummary,
   getEntradasSaidasPorMes,
+  getPrevisaoDespesas,
   type ListLancamentosOptions,
   type MesEntradasSaidas,
+  type PrevisaoDespesas,
 } from "./queries";
 export {
   createLancamento,

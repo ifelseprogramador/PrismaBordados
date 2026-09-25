@@ -5,6 +5,10 @@
 - [`decisoes.md`](./decisoes.md) — por quê: log cronológico estilo ADR
   das decisões técnicas, incluindo as que divergem do projeto de
   referência (mecano-erp).
+- [`lgpd-checklist.md`](./lgpd-checklist.md) — status de conformidade
+  com a LGPD: o que já está implementado em código, o que falta
+  implementar, e o que é decisão de negócio/jurídica que nenhum código
+  resolve sozinho.
 
 Mantenha estes dois arquivos atualizados a cada mudança relevante de
 código — não deixe a documentação para o fim (ver a regra de manutenção

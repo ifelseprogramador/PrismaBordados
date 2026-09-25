@@ -21,14 +21,30 @@ type BoundAction = (prevState: ActionResult, formData: FormData) => Promise<Acti
  * `app/(app)/pedidos/[id]/financeiro-actions.ts`) — este componente nunca
  * importa `financeiro` diretamente, pra `pedidos` continuar sem depender
  * de outro módulo. Sem `action`, cai no `registerAdiantamento` puro do
- * próprio módulo (só grava o agregado, sem lançamento financeiro). */
+ * próprio módulo (só grava o agregado, sem lançamento financeiro).
+ *
+ * IMPORTANTE pra quem renderiza este componente: passe uma `key` que
+ * mude quando o pedido for salvo (ex.: `key={pedido.updatedAt.toString()}`,
+ * mesmo padrão de `ClienteForm`) — sem isso, um `defaultValue` (campo não
+ * controlado) que muda só via prop, sem remount, dispara o aviso do Base
+ * UI "changing the default value state of an uncontrolled FieldControl
+ * after being initialized". Isso é diferente de resetar em erro de
+ * validação (nunca fazer isso, ver memória do usuário sobre preservar
+ * dado válido em formulário) — aqui é o oposto: depois de um SALVAMENTO
+ * bem-sucedido, os campos devem refletir o valor que o servidor
+ * confirmou, então o remount é o comportamento certo. */
 export function AdiantamentoForm({
   pedidoId,
   adiantamentoCents,
+  paymentDueDate,
   action,
 }: {
   pedidoId: string;
   adiantamentoCents: number;
+  /** Vencimento atual do saldo, se já definido (`YYYY-MM-DD`, formato de
+   * `<input type="date">`) — editável junto do adiantamento, ver
+   * `schema.ts#paymentDueDate`. */
+  paymentDueDate?: string | null;
   action?: BoundAction;
 }) {
   const boundAction = action ?? registerAdiantamento.bind(null, pedidoId);
@@ -36,7 +52,7 @@ export function AdiantamentoForm({
   const errors = state.errors ?? {};
 
   return (
-    <form action={formAction} className="flex items-end gap-2">
+    <form action={formAction} className="flex flex-wrap items-end gap-2">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-1.5">
           <Label htmlFor="adiantamento">Adiantamento recebido (total)</Label>
@@ -57,6 +73,22 @@ export function AdiantamentoForm({
             {e}
           </p>
         ))}
+      </div>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="paymentDueDate">Vencimento do saldo</Label>
+          <Hint>
+            Até quando o restante precisa ser pago — aparece no painel na lista de clientes com
+            saldo em aberto, marcado como atrasado se essa data passar sem o saldo zerar. Deixe em
+            branco se ainda não houver uma data combinada.
+          </Hint>
+        </div>
+        <Input
+          id="paymentDueDate"
+          name="paymentDueDate"
+          type="date"
+          defaultValue={paymentDueDate ?? ""}
+        />
       </div>
       <Button type="submit" size="sm" disabled={isPending}>
         {isPending ? "Salvando..." : "Atualizar"}

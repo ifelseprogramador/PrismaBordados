@@ -19,7 +19,7 @@ export const pedidoHeaderSchema = z.object({
 export type PedidoHeaderInput = z.infer<typeof pedidoHeaderSchema>;
 
 function emptyToUndefined(value: FormDataEntryValue | null) {
-  return value === "" ? undefined : value;
+  return value === "" || value === null ? undefined : value;
 }
 
 export function parsePedidoHeaderFormData(formData: FormData) {
@@ -28,6 +28,42 @@ export function parsePedidoHeaderFormData(formData: FormData) {
     orderDate: formData.get("orderDate"),
     deliveryDate: emptyToUndefined(formData.get("deliveryDate")),
     deliveryTime: emptyToUndefined(formData.get("deliveryTime")),
+  });
+}
+
+/**
+ * Só para a CRIAÇÃO do pedido (`createPedido`) — schema separado de
+ * `pedidoHeaderSchema` de propósito: `updatePedidoHeader` (edição do
+ * cabeçalho depois de criado) nunca deve poder tocar em
+ * `adiantamentoCents`, que a partir daí só é alterado via
+ * `AdiantamentoForm`/`registerAdiantamento`. Os dois campos aqui são
+ * opcionais — nem todo pedido nasce com entrada já paga ou vencimento
+ * combinado.
+ */
+export const pedidoCreateSchema = pedidoHeaderSchema.extend({
+  adiantamentoCents: z.coerce
+    .number()
+    .int()
+    .min(0, "O adiantamento não pode ser negativo.")
+    .optional(),
+  paymentDueDate: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v || undefined),
+});
+
+export type PedidoCreateInput = z.infer<typeof pedidoCreateSchema>;
+
+export function parsePedidoCreateFormData(formData: FormData) {
+  const adiantamentoCents = parseReaisInput(String(formData.get("adiantamento") ?? ""));
+  return pedidoCreateSchema.safeParse({
+    customerId: formData.get("customerId"),
+    orderDate: formData.get("orderDate"),
+    deliveryDate: emptyToUndefined(formData.get("deliveryDate")),
+    deliveryTime: emptyToUndefined(formData.get("deliveryTime")),
+    adiantamentoCents: adiantamentoCents ?? undefined,
+    paymentDueDate: emptyToUndefined(formData.get("paymentDueDate")),
   });
 }
 
@@ -74,12 +110,22 @@ export function parsePedidoItemFormData(formData: FormData) {
 
 /** Registro de adiantamento — campo AGREGADO (soma dos recebimentos), não
  * um lançamento individual (isso é trabalho do futuro módulo
- * `financeiro`). Aqui só valida o novo total agregado informado. */
+ * `financeiro`). Aqui só valida o novo total agregado informado.
+ * `paymentDueDate` é opcional — até quando o SALDO restante precisa ser
+ * pago (ver `schema.ts#paymentDueDate`); vazio limpa o vencimento. */
 export const adiantamentoSchema = z.object({
   adiantamentoCents: z.coerce.number().int().min(0, "O adiantamento não pode ser negativo."),
+  paymentDueDate: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v || undefined),
 });
 
 export function parseAdiantamentoFormData(formData: FormData) {
   const adiantamentoCents = parseReaisInput(String(formData.get("adiantamento") ?? "0"));
-  return adiantamentoSchema.safeParse({ adiantamentoCents: adiantamentoCents ?? undefined });
+  return adiantamentoSchema.safeParse({
+    adiantamentoCents: adiantamentoCents ?? undefined,
+    paymentDueDate: emptyToUndefined(formData.get("paymentDueDate")),
+  });
 }

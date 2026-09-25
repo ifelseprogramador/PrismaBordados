@@ -3,7 +3,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { requireEnv } from "@/core/env";
 
-const PUBLIC_PATHS = ["/login"];
+// `/privacidade` precisa ser pública por exigência da própria LGPD — um
+// aviso de privacidade que só quem já tem login consegue ler não cumpre
+// a finalidade de informar o titular antes/independente do cadastro. Ver
+// docs/lgpd-checklist.md.
+const PUBLIC_PATHS = ["/login", "/privacidade"];
 
 /**
  * Renova a sessão do Supabase a cada request e redireciona para /login

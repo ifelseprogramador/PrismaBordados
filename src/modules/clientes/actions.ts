@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
+import { recordLgpdAction } from "@/core/audit-log";
 import type { ActionResult } from "@/core/action-result";
-import { clientes } from "./schema";
+import { clientes, CLIENTE_ANONIMIZADO_NOME } from "./schema";
 import { parseClienteFormData } from "./validation";
 
 export interface InsertResult extends ActionResult {
@@ -57,13 +58,22 @@ export async function updateCliente(
     tx
       .update(clientes)
       .set({ ...parsed.data, updatedAt: new Date() })
-      .where(and(eq(clientes.id, clienteId), eq(clientes.organizationId, organizationId)))
+      .where(
+        and(
+          eq(clientes.id, clienteId),
+          eq(clientes.organizationId, organizationId),
+          // Nunca reescreve um cliente já anonimizado (LGPD) — mesma
+          // regra que a UI aplica escondendo o form, aqui como defesa
+          // contra um POST direto na action. `isNull` importado abaixo.
+          isNull(clientes.anonymizedAt),
+        ),
+      )
       .returning({ id: clientes.id }),
   );
 
   if (result.length === 0) {
     log.warn("clientes.atualizar.nao_encontrado", { clienteId });
-    return { ok: false, message: "Cliente não encontrado." };
+    return { ok: false, message: "Cliente não encontrado ou já anonimizado (LGPD)." };
   }
 
   log.info("clientes.atualizar.sucesso", { clienteId });
@@ -72,15 +82,76 @@ export async function updateCliente(
 }
 
 export async function deleteCliente(clienteId: string): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, userId, log, withDb } = await withOrg();
 
-  await withDb((tx) =>
-    tx
+  await withDb(async (tx) => {
+    await tx
       .delete(clientes)
-      .where(and(eq(clientes.id, clienteId), eq(clientes.organizationId, organizationId))),
-  );
+      .where(and(eq(clientes.id, clienteId), eq(clientes.organizationId, organizationId)));
+    await recordLgpdAction(tx, {
+      organizationId,
+      performedBy: userId,
+      action: "delete",
+      subjectTable: "clientes",
+      subjectId: clienteId,
+    });
+  });
 
   log.info("clientes.remover.sucesso", { clienteId });
   revalidatePath("/clientes");
+  return { ok: true };
+}
+
+/**
+ * Direito à eliminação (LGPD, Art. 18, VI). Diferente de `deleteCliente`
+ * (DELETE de verdade, só possível quando nenhum `pedido` referencia o
+ * cliente — `onDelete: "restrict"`): aqui os campos pessoais são
+ * sobrescritos, mas a LINHA continua existindo, porque `pedidos` (prova
+ * fiscal/contábil, com prazo de guarda legal — Art. 16 da LGPD permite
+ * reter dado além do pedido de eliminação quando há obrigação legal) não
+ * pode ficar com uma FK quebrada. A decisão de qual das duas chamar
+ * (`deleteCliente` vs. `anonymizeCliente`) é da camada de orquestração —
+ * ver `app/(app)/clientes/[id]/privacy-actions.ts`, que consulta
+ * `pedidos` antes de escolher (este módulo não pode importar `pedidos`,
+ * regra 8 de `src/modules/README.md`).
+ */
+export async function anonymizeCliente(clienteId: string): Promise<ActionResult> {
+  const { organizationId, userId, log, withDb } = await withOrg();
+
+  const result = await withDb(async (tx) => {
+    const rows = await tx
+      .update(clientes)
+      .set({
+        name: CLIENTE_ANONIMIZADO_NOME,
+        document: null,
+        phone: "",
+        address: null,
+        email: null,
+        anonymizedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(clientes.id, clienteId), eq(clientes.organizationId, organizationId)))
+      .returning({ id: clientes.id });
+
+    if (rows.length === 0) return rows;
+
+    await recordLgpdAction(tx, {
+      organizationId,
+      performedBy: userId,
+      action: "anonymize",
+      subjectTable: "clientes",
+      subjectId: clienteId,
+    });
+    return rows;
+  });
+
+  if (result.length === 0) {
+    log.warn("clientes.anonimizar.nao_encontrado", { clienteId });
+    return { ok: false, message: "Cliente não encontrado." };
+  }
+
+  log.info("clientes.anonimizar.sucesso", { clienteId });
+  revalidatePath("/clientes");
+  revalidatePath(`/clientes/${clienteId}`);
   return { ok: true };
 }
