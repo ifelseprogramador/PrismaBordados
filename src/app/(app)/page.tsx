@@ -1,25 +1,35 @@
 import Link from "next/link";
-import { ClipboardList, LayoutDashboard, Package, Users } from "lucide-react";
+import { ClipboardList, LayoutDashboard, Package, Users, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getActiveOrg } from "@/core/auth";
 import { formatCents } from "@/core/money";
 import { getPedidosDashboardSummary } from "@/modules/pedidos";
 import { listClientes } from "@/modules/clientes/queries";
 import { PedidoStatusBadge } from "@/modules/pedidos/components/pedido-status-badge";
+import {
+  getFinanceiroDashboardSummary,
+  getEntradasSaidasPorMes,
+  EntradasSaidasChart,
+} from "@/modules/financeiro";
 
 /**
  * Dashboard do Prisma: cada módulo expõe `get<Modulo>DashboardSummary()`
  * pelo seu barrel (ver `src/modules/README.md`) — esta página só compõe,
- * nunca lê tabela de outro módulo diretamente. Primeiro exemplo concreto
- * do contrato "Dashboard" documentado ali, substituindo o shell de
- * placeholders herdado do BaseERP.
+ * nunca lê tabela de outro módulo diretamente. "Lucro do mês" (
+ * `financeiro`, entradas − saídas) e "Saldo a receber" (`pedidos`, soma
+ * de `saldoCents` de pedidos não terminais) são métricas DIFERENTES,
+ * mostradas lado a lado, nunca somadas (ver docs/decisoes.md) — a
+ * planilha antiga da empresa aparentemente confundia as duas.
  */
 export default async function DashboardPage() {
-  const [org, pedidosSummary, clientes] = await Promise.all([
-    getActiveOrg(),
-    getPedidosDashboardSummary(),
-    listClientes(),
-  ]);
+  const [org, pedidosSummary, clientes, financeiroSummary, entradasSaidasPorMes] =
+    await Promise.all([
+      getActiveOrg(),
+      getPedidosDashboardSummary(),
+      listClientes(),
+      getFinanceiroDashboardSummary(),
+      getEntradasSaidasPorMes(6),
+    ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,39 +56,70 @@ export default async function DashboardPage() {
           value={String(pedidosSummary.inProgressCount)}
         />
         <KpiCard
+          icon={Wallet}
+          label="Entradas do mês"
+          value={formatCents(financeiroSummary.entradasCents)}
+        />
+        <KpiCard
+          icon={Wallet}
+          label="Saídas do mês"
+          value={formatCents(financeiroSummary.saidasCents)}
+        />
+        <KpiCard
+          icon={Wallet}
+          label="Lucro do mês"
+          value={formatCents(financeiroSummary.lucroCents)}
+        />
+        <KpiCard
           icon={ClipboardList}
           label="Saldo a receber"
           value={formatCents(pedidosSummary.receivableCents)}
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <LayoutDashboard className="text-primary h-4 w-4" />
-            Pedidos recentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {pedidosSummary.recent.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Nenhum pedido cadastrado ainda.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {pedidosSummary.recent.map((pedido) => (
-                <li key={pedido.id} className="flex items-center justify-between text-sm">
-                  <Link href={`/pedidos/${pedido.id}`} className="hover:underline">
-                    #{pedido.number} — {pedido.customerName}
-                  </Link>
-                  <div className="flex items-center gap-2">
-                    <PedidoStatusBadge status={pedido.status} />
-                    <span className="text-muted-foreground">{formatCents(pedido.totalCents)}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Wallet className="text-primary h-4 w-4" />
+              Entradas x saídas (últimos 6 meses)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EntradasSaidasChart data={entradasSaidasPorMes} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <LayoutDashboard className="text-primary h-4 w-4" />
+              Pedidos recentes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pedidosSummary.recent.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum pedido cadastrado ainda.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {pedidosSummary.recent.map((pedido) => (
+                  <li key={pedido.id} className="flex items-center justify-between text-sm">
+                    <Link href={`/pedidos/${pedido.id}`} className="hover:underline">
+                      #{pedido.number} — {pedido.customerName}
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <PedidoStatusBadge status={pedido.status} />
+                      <span className="text-muted-foreground">
+                        {formatCents(pedido.totalCents)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

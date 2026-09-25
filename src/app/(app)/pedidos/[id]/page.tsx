@@ -13,13 +13,17 @@ import { PedidoStatusActions } from "@/modules/pedidos/components/pedido-status-
 import { PedidoItensTable } from "@/modules/pedidos/components/pedido-itens-table";
 import { PedidoItemForm } from "@/modules/pedidos/components/pedido-item-form";
 import { AdiantamentoForm } from "@/modules/pedidos/components/adiantamento-form";
+import { registrarRecebimentoPedido } from "./financeiro-actions";
+import { EmitirNotaButton } from "./emitir-nota-button";
+import { listFiscalNotasByPedido, FiscalNotasList } from "@/modules/fiscal";
 
 export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[id]">) {
   const { id } = await params;
-  const [pedido, itens, catalogoItens] = await Promise.all([
+  const [pedido, itens, catalogoItens, fiscalNotas] = await Promise.all([
     getPedidoById(id),
     listPedidoItens(id),
     listCatalogoBordadoItensForSelect(),
+    listFiscalNotasByPedido(id),
   ]);
 
   if (!pedido) {
@@ -95,11 +99,30 @@ export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[
             <span className="text-muted-foreground">Total do pedido</span>
             <span className="font-medium">{formatCents(pedido.totalCents)}</span>
           </div>
-          <AdiantamentoForm pedidoId={pedido.id} adiantamentoCents={pedido.adiantamentoCents} />
+          <AdiantamentoForm
+            pedidoId={pedido.id}
+            adiantamentoCents={pedido.adiantamentoCents}
+            action={registrarRecebimentoPedido.bind(null, pedido.id)}
+          />
           <div className="flex justify-between border-t pt-3">
             <span className="text-muted-foreground">Saldo a receber</span>
             <span className="text-base font-semibold">{formatCents(pedido.saldoCents ?? 0)}</span>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Nota fiscal</CardTitle>
+          {pedido.status === "entregue" && <EmitirNotaButton pedidoId={pedido.id} />}
+        </CardHeader>
+        <CardContent>
+          <FiscalNotasList notas={fiscalNotas} />
+          {pedido.status !== "entregue" && (
+            <p className="text-muted-foreground mt-2 text-xs">
+              A emissão de nota fica disponível quando o pedido é marcado como entregue.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

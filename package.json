@@ -42,6 +42,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.88.0",
+    "recharts": "^3.10.1",
     "rrweb": "^2.1.6",
     "server-only": "^0.0.1",
     "shadcn": "^4.21.0",

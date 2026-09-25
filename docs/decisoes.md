@@ -280,9 +280,191 @@ não foram escritos como testes de integração de verdade — a suíte cobre
 RLS+queries para quando houver um Postgres real disponível, seguindo o
 mesmo padrão gated de `rls-isolation.integration.test.ts` da Fase 0.
 
-## 2026-09-24 — Módulo `financeiro`/`fiscal`: fora de escopo desta entrega
+## 2026-09-24 — Módulo `financeiro`/`fiscal`: implementados (Fase 3/4)
 
-Fases 3 e 4 do plano (`financeiro`, `fiscal`) não foram implementadas
-aqui — apenas referenciadas em comentários (`actions.ts#registerAdiantamento`)
-para deixar claro onde a orquestração futura vai se encaixar. Nenhuma
-tabela, schema ou provider foi criado para elas nesta entrega.
+Atualização da entrada anterior ("fora de escopo desta entrega"): as
+Fases 3 (`financeiro` + dashboard) e 4 (`fiscal`, interface
+`FiscalProvider`) do plano foram implementadas. As decisões específicas
+de cada uma estão detalhadas nas entradas abaixo.
+
+## 2026-09-24 — `financeiro_lancamentos.referenceId` sem foreign key
+
+`financeiro_lancamentos.referenceId` (junto de `referenceType`, que vale
+`"pedido"` ou `"manual"`) é uma coluna `uuid` SOLTA, sem
+`references(() => pedidos.id)` — ao contrário de `fiscal_notas.pedidoId`,
+que usa a exceção `schema.ts` → `schema.ts` documentada na regra 8 do
+contrato de módulo.
+
+Os dois lados considerados:
+
+- **A favor de uma FK real** (o mesmo padrão de `fiscal_notas`):
+  integridade garantida pelo banco, `onDelete` explícito, join direto sem
+  risco de "órfão" apontando para um pedido apagado.
+- **A favor de deixar solto** (decisão tomada): `financeiro` é
+  candidato explícito a promoção para o BaseERP assim que estabilizar
+  (ver docs/decisoes.md do BaseERP e a entrada "Onde o módulo `clientes`
+  foi criado" acima, mesmo raciocínio) — o BaseERP não tem `pedidos`
+  nem vai ter tão cedo (é um projeto-template sem vertical). Uma FK real
+  em `schema.ts` amarraria `financeiro` a conhecer o pacote
+  `@/modules/pedidos/schema` para sempre, inviabilizando copiar o módulo
+  para o BaseERP sem também levar (ou remover) essa dependência. Além
+  disso, um lançamento financeiro é uma entidade que faz sentido sozinha
+  (um lançamento manual nunca teve `referenceId` desde o início) — ao
+  contrário de `fiscal_notas`, que é conceitualmente sempre filha de um
+  pedido.
+
+Decisão: manter sem FK. A integridade fica com a camada de orquestração
+(`app/(app)/pedidos/[id]/financeiro-actions.ts`, que só grava
+`referenceId` com um `pedidoId` que acabou de confirmar existir) — nunca
+o banco. Se `pedidos` apagar um pedido no futuro (hoje `onDelete:
+"restrict"` impede isso), o lançamento financeiro correspondente vira um
+registro histórico "órfão" — aceitável, porque um lançamento financeiro
+é prova de caixa (dinheiro que entrou/saiu de verdade) e não deveria
+desaparecer só porque o pedido que o originou foi removido.
+
+## 2026-09-24 — Orquestração pedidos↔financeiro: onde ficou
+
+`registerAdiantamento` (em `modules/pedidos/actions.ts`) continua
+gravando só o TOTAL agregado recebido por um pedido — nunca cria um
+lançamento financeiro sozinho (nem poderia, `pedidos` não importa
+`financeiro`). A Server Action fina
+`app/(app)/pedidos/[id]/financeiro-actions.ts#registrarRecebimentoPedido`
+é o único lugar que conhece os dois barrels ao mesmo tempo: lê o pedido
+ANTES (`getPedidoById`), chama `registerAdiantamento` (grava o novo
+agregado), lê o pedido DEPOIS, calcula a DIFERENÇA entre os dois
+agregados (o valor recebido NESTA vez, não o total acumulado) e, se
+positiva, cria um lançamento de `entrada` via
+`financeiro#createLancamentoRecord` — categoria `saldo_recebido` quando
+esse recebimento zera o saldo do pedido, `adiantamento` caso contrário.
+
+`modules/pedidos/components/adiantamento-form.tsx` ganhou uma prop
+`action` opcional (um `BoundAction`) para a página injetar essa
+orquestração sem o componente do módulo `pedidos` importar `financeiro`
+diretamente — sem a prop, cai de volta no `registerAdiantamento` puro do
+próprio módulo (só grava o agregado, sem lançamento automático). Testado
+sem banco em
+`app/(app)/pedidos/[id]/__tests__/financeiro-actions.test.ts`, mockando
+os dois barrels (`@/modules/pedidos` e `@/modules/financeiro`).
+
+## 2026-09-24 — Recharts confinado a `modules/financeiro/components`
+
+O usuário pediu estatísticas "fáceis de entender" para substituir a
+planilha — motivo que já estava registrado no plano para divergir do
+mecano-erp (que não usa lib de gráfico nenhuma, só CSS). `recharts` foi
+adicionado a `package.json#dependencies`, mas só é importado dentro de
+`modules/financeiro/components/entradas-saidas-chart.tsx` — nenhum
+arquivo de `core/` ou de outro módulo importa `recharts` diretamente;
+o dashboard (`app/(app)/page.tsx`) só importa o COMPONENTE já pronto
+pelo barrel de `financeiro`, nunca a lib em si. Se um dia `financeiro`
+for promovido para o BaseERP, a dependência de gráfico vai junto — o
+BaseERP continua sem Recharts enquanto isso não acontecer.
+
+A skill de dataviz foi consultada antes de escrever o componente (ver
+comentário no topo de `entradas-saidas-chart.tsx`): paleta
+verde/vermelho validada com
+`scripts/validate_palette.js "#008300,#e34948" --mode light --pairs all`
+(WARN de separação CVD na faixa 6–8, mitigado por legenda + tooltip
+sempre visíveis, nunca só a cor), barras AGRUPADAS (não empilhadas,
+porque entrada e saída não somam um total com sentido), um eixo só,
+cores via CSS custom properties escopadas ao componente (convenção
+`.dark` já usada em `app/globals.css`, não uma dependência de tema
+nova).
+
+## 2026-09-24 — Lucro vs. "saldo a receber": métricas separadas, nunca somadas
+
+`financeiro/domain.ts#calculateLucro` (entradas − saídas de um período,
+pode ser negativo) e `pedidos/queries.ts#getPedidosDashboardSummary`
+(`receivableCents`, soma de `saldoCents` de pedidos NÃO terminais) são
+métricas conceitualmente diferentes — uma é caixa (dinheiro que já
+entrou/saiu), a outra é pipeline (dinheiro que ainda vai entrar). A
+planilha antiga da empresa aparentemente misturava as duas num único
+número. O dashboard (`app/(app)/page.tsx`) mostra os dois KPIs lado a
+lado, nunca soma um no outro. `pedidos/domain.ts#isReceivableStatus`
+(nova função pura, testada em `__tests__/domain.test.ts`) documenta a
+regra "pedido `cancelado` (e `entregue`) nunca conta como a receber" de
+forma testável sem banco — a query real em `queries.ts` já aplicava essa
+regra em SQL (`status not in ('entregue', 'cancelado')`) desde a Fase 2;
+o helper é a versão testável da mesma regra, não uma reescrita da query.
+
+## 2026-09-24 — Campo que decide NF-e vs. NFS-e por item: `catalogoItemId`, sem coluna nova
+
+Em vez de adicionar uma coluna nova em `pedido_itens` (o que faria
+`fiscal` precisar conhecer mais do schema de `pedidos`, ou `pedidos`
+precisar conhecer conceitos fiscais), `modules/fiscal/domain.ts#decideOperacaoTipo`
+reaproveita um sinal que `pedido_itens` já tinha desde a Fase 2:
+`catalogoItemId`. Um item vinculado a um item de catálogo é uma peça
+PRONTA que a empresa vende (operação de venda → NF-e); um item sem
+vínculo (produto digitado à mão — o cliente trouxe a peça própria para
+bordar) é serviço sobre bem de terceiro (→ NFS-e). Isso já é exatamente
+a semântica documentada em `modules/pedidos/schema.ts#pedidoItens`
+("o cliente pode trazer peça própria, sem nenhum item de catálogo por
+trás") — nenhuma migration nova foi necessária no schema de `pedidos`.
+Um pedido com itens dos dois tipos gera NF-e E NFS-e separadas (mesmo
+`pedidoId`, duas linhas em `fiscal_notas`).
+
+## 2026-09-24 — Provider "não configurado": formato fail-safe
+
+`fiscal_credentials.providerSlug` fica vazio/null até a organização
+escolher um provedor real (nenhum foi implementado nesta fase — decisão
+adiada pelo usuário). `modules/fiscal/resolve-provider.ts#resolveFiscalProvider`
+resolve isso em runtime: qualquer slug vazio ou desconhecido cai num
+`NaoConfiguradoFiscalProvider` que NUNCA lança — `emitirNFe`/`emitirNFSe`/
+`consultar` devolvem `{ status: "erro", errorMessage: <mensagem
+amigável> }`, `cancelar` devolve `{ ok: false, errorMessage }`, e só
+`baixarPdf`/`baixarXml` lançam (não há nada plausível para devolver como
+"arquivo" de uma nota que nunca foi emitida — quem chama já checa
+`status === "emitida"` antes de oferecer o link). Isso garante que
+"emitir nota" a partir de um pedido nunca quebra o fluxo do pedido
+mesmo sem provedor nenhum contratado: grava `fiscal_notas.status =
+'erro'` com a mensagem, e a UI mostra isso como qualquer outro erro de
+nota. O núcleo de emissão (`run-emissao.ts#runEmissaoParaPedido`) captura
+também qualquer exceção lançada por uma implementação real futura
+(`try/catch` em volta de `provider.emitirNFe`/`emitirNFSe`), pelo mesmo
+motivo.
+
+## 2026-09-24 — `fiscal_notas` com FK real; `fiscal_credentials` fora do backup
+
+`fiscal_notas.pedidoId` usa a exceção `schema.ts` → `schema.ts` (importa
+`@/modules/pedidos/schema` direto, mesmo padrão já usado por
+`modules/pedidos/schema.ts` em relação a `clientes`/`catalogo-bordado`) —
+decisão consistente com a regra já registrada acima
+("`financeiro_lancamentos.referenceId` sem FK"): aqui a entidade É
+conceitualmente filha de um pedido específico (nunca existe sozinha),
+então a FK real faz sentido e não compromete uma promoção futura (`fiscal`
+também é candidato a promoção pro BaseERP, mas só no dia em que o
+BaseERP tiver um conceito de "pedido"/"ordem" — até lá, `fiscal` fica no
+Prisma mesmo).
+
+`fiscal_credentials` (guarda `apiKeyEncrypted`, mesmo que placeholder)
+NUNCA entra no backup por organização (`core/backup.ts`) — só
+`fiscal_notas` chama `registerBackupTable`. Um arquivo de backup
+exportável não é o lugar certo para um segredo, mesmo fracamente
+"criptografado" (ver decisão seguinte).
+
+## 2026-09-24 — `apiKeyEncrypted`: placeholder, não é solução de produção
+
+`modules/fiscal/crypto-placeholder.ts` implementa uma codificação
+reversível (base64 + prefixo de versão) só para não gravar a chave de
+API em texto puro durante o MVP local — documentado explicitamente no
+próprio arquivo como INSUFICIENTE para produção (qualquer um com acesso
+de leitura ao banco decodifica trivialmente). Antes de qualquer
+organização real usar o módulo fiscal, trocar por uma solução de secrets
+de verdade (Supabase Vault, KMS de nuvem, ou um cofre externo). Tanto
+`apiKeyEncrypted` quanto `providerConfig` (que pode carregar segredos
+específicos de um provedor futuro) foram adicionados ao padrão de
+`redact()` do logger (`core/logger.ts#SENSITIVE_KEY_PATTERN`) — nunca
+aparecem em log, mesmo em erro.
+
+## 2026-09-24 — `run-emissao.ts`: núcleo puro de emissão/cancelamento, testável com provider fake
+
+`modules/fiscal/actions.ts#emitirNotaFiscal`/`cancelarNotaFiscal` fazem
+só I/O de banco (ler credenciais, gravar `fiscal_notas`) em cima de duas
+funções puras extraídas para `run-emissao.ts`
+(`runEmissaoParaPedido`/`runCancelamento`), que recebem um
+`FiscalProvider` já resolvido e nunca tocam banco — só chamam o
+provider. Isso permite testar o fluxo inteiro (separação NF-e/NFS-e,
+emissão múltipla, erro do provider capturado sem lançar, cancelamento
+com/sem `providerNotaId`) com `__tests__/provider.fake.ts`
+(`FakeFiscalProvider`, que não faz rede nenhuma) em vez de precisar de
+Postgres — mesma disciplina de `pedidos/domain.ts`, aplicada a uma peça
+que envolve um "port" externo (o provider) em vez de só cálculo.

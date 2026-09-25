@@ -19,10 +19,12 @@
 import "@/modules/clientes/module";
 import "@/modules/catalogo-bordado/module";
 import "@/modules/pedidos/module";
+import "@/modules/financeiro/module";
+import "@/modules/fiscal/module";
 import { registerBusinessTypePreset } from "@/core/business-type-presets";
 
 registerBusinessTypePreset({
   value: "bordados",
   label: "Bordados",
-  defaultModuleSlugs: ["clientes", "catalogo-bordado", "pedidos"],
+  defaultModuleSlugs: ["clientes", "catalogo-bordado", "pedidos", "financeiro", "fiscal"],
 });

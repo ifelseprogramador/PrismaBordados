@@ -64,3 +64,18 @@ export function calculateSaldo(totalCents: Cents, adiantamentoCents: Cents): Cen
 export function isAdiantamentoAboveTotal(totalCents: Cents, adiantamentoCents: Cents): boolean {
   return adiantamentoCents > totalCents;
 }
+
+/**
+ * Verdadeiro quando um pedido neste status ainda deve contar como "a
+ * receber" no dashboard (`queries.ts#getPedidosDashboardSummary`, coluna
+ * `receivableCents`) — hoje idêntico a "não terminal"
+ * (`entregue`/`cancelado` nunca contam, mesmo que `entregue` ainda tenha
+ * saldo em aberto: uma vez entregue, a cobrança deixa de ser rastreada
+ * como pipeline de venda). Extraído como função pura só para ser testável
+ * sem banco — a query real em `queries.ts` usa a mesma regra em SQL
+ * (`status not in ('entregue', 'cancelado')`), documentado ali como
+ * equivalente a este helper.
+ */
+export function isReceivableStatus(status: PedidoStatus): boolean {
+  return !isTerminalStatus(status);
+}

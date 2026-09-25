@@ -42,7 +42,7 @@ const isProduction = process.env.NODE_ENV === "production";
 
 /** Chaves que nunca devem aparecer em um log, em nenhuma profundidade. */
 const SENSITIVE_KEY_PATTERN =
-  /(password|senha|token|secret|api[-_]?key|authorization|cookie|cpf|cnpj|documento)/i;
+  /(password|senha|token|secret|api[-_]?key|authorization|cookie|cpf|cnpj|documento|provider[-_]?config)/i;
 
 const REDACTED = "[redacted]";
 

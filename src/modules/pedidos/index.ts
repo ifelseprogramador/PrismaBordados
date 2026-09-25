@@ -9,6 +9,7 @@ export type { PedidoStatusFilter, PedidoSort } from "./queries";
 export {
   isValidTransition,
   isTerminalStatus,
+  isReceivableStatus,
   calculateOrderTotal,
   calculateSaldo,
   isAdiantamentoAboveTotal,

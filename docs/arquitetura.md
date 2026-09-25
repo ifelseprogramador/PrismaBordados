@@ -22,6 +22,11 @@ src/
 │   │   ├── clientes/       # rotas do módulo clientes
 │   │   ├── catalogo-bordado/  # rotas do módulo catalogo-bordado
 │   │   ├── pedidos/        # rotas do módulo pedidos (lista, novo, [id], imprimir)
+│   │   │   └── [id]/financeiro-actions.ts, fiscal-actions.ts
+│   │   │       # orquestração fina pedidos↔financeiro e pedidos↔fiscal —
+│   │   │       # fora dos três módulos (nenhum importa o outro)
+│   │   ├── financeiro/     # rotas do módulo financeiro (lançamentos)
+│   │   ├── fiscal/         # rotas do módulo fiscal (configuração de provedor)
 │   │   └── backup/         # backup/restore por organização
 │   ├── (admin)/admin/      # painel do dono da plataforma
 │   └── api/                # health check, cron de backup
@@ -53,7 +58,9 @@ src/
 │   ├── README.md            # contrato de arquivos de módulo
 │   ├── clientes/             # módulo universal (candidato a promoção pro BaseERP)
 │   ├── catalogo-bordado/      # específico do vertical bordados
-│   └── pedidos/               # módulo central: pedido + itens + máquina de estados
+│   ├── pedidos/               # módulo central: pedido + itens + máquina de estados
+│   ├── financeiro/            # lançamentos entrada/saída, lucro, gráfico (Recharts)
+│   └── fiscal/                 # interface FiscalProvider, sem provedor concreto
 └── components/
     ├── ui/                  # shadcn/ui sobre Base UI (gerado, não editar à mão)
     ├── auto-print.tsx        # abre o diálogo de impressão sozinho (páginas /imprimir)
@@ -76,6 +83,45 @@ src/
   (`totalCents`), e uma tabela filha sem `organizationId` próprio
   (`pedido_itens`, RLS via join — ver
   `db/migrations-custom/0005_modulos_bordados_rls.sql`).
+
+## `financeiro` e `fiscal` (Fase 3/4 — orquestração entre módulos irmãos)
+
+Os dois módulos mais recentes seguem o mesmo contrato, mas ilustram uma
+peça nova do padrão: **orquestração fora dos módulos** quando dois
+módulos irmãos precisam se falar sem se importar um ao outro.
+
+- **`modules/financeiro/`**: `financeiro_lancamentos` (`entrada`/`saida`,
+  categoria fechada, `amountCents`, `date`, `referenceType`/`referenceId`
+  OPCIONAIS e SEM foreign key — ver docs/decisoes.md). `domain.ts` é
+  100% puro (soma por tipo, lucro = entradas − saídas), testável sem
+  banco. `queries.ts` expõe `getFinanceiroDashboardSummary()` (mês
+  corrente) e `getEntradasSaidasPorMes()` (série para o gráfico).
+  Recharts é dependência SÓ de `modules/financeiro/components/` — nunca
+  do `core` (ver docs/decisoes.md).
+- **`modules/fiscal/`**: `provider.ts` define a interface
+  `FiscalProvider` (`emitirNFe`/`emitirNFSe`/`consultar`/`cancelar`/
+  `baixarPdf`/`baixarXml`) em termos de domínio fiscal genérico — nenhum
+  provedor concreto está implementado (decisão adiada pelo usuário).
+  `resolve-provider.ts` resolve, em runtime, qual implementação usar a
+  partir de `fiscal_credentials.providerSlug`; vazio/desconhecido sempre
+  cai num provider "não configurado" que devolve erro amigável, nunca
+  lança. `domain.ts#decideOperacaoTipo` decide NF-e vs. NFS-e por item de
+  pedido a partir de `catalogoItemId` (sem exigir coluna nova). O núcleo
+  de emissão/cancelamento (`run-emissao.ts`) é puro em relação a I/O de
+  rede — recebe um `FiscalProvider` injetado — o que permite testar o
+  fluxo inteiro com `__tests__/provider.fake.ts` (`FakeFiscalProvider`),
+  sem Postgres nem rede. `fiscal_notas` tem FK real pra `pedidos`
+  (exceção `schema.ts` → `schema.ts`, ver regra 8 do contrato de
+  módulo) — 1:N de propósito, um pedido pode gerar NF-e e NFS-e juntas.
+- **Orquestração pedidos↔financeiro / pedidos↔fiscal**: nenhum dos três
+  módulos importa outro (regra de acoplamento). Quem precisa dos dois ao
+  mesmo tempo é uma Server Action fina em
+  `app/(app)/pedidos/[id]/financeiro-actions.ts` (chama
+  `pedidos#registerAdiantamento` + `financeiro#createLancamentoRecord`) e
+  `app/(app)/pedidos/[id]/fiscal-actions.ts` (monta o payload a partir de
+  `pedidos#getPedidoById`/`listPedidoItens` e chama
+  `fiscal#emitirNotaFiscal`) — este é o padrão a seguir sempre que dois
+  módulos de negócio precisarem colaborar sem se acoplar.
 
 ## Tenancy
 

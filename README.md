@@ -14,9 +14,19 @@ do vertical bordados:
   de estados (`orcamento → aprovado → em_producao → pronto → entregue`,
   com `cancelado` a partir de qualquer estado não-terminal), impressão do
   pedido reproduzindo o formulário físico usado pela empresa.
-
-Módulos futuros (`financeiro`, `fiscal`) estão desenhados no plano mas
-fora do escopo desta entrega — ver `docs/decisoes.md`.
+- **`financeiro`** — lançamentos de entrada/saída, lucro do período
+  (entradas − saídas, diferente de "saldo a receber" de `pedidos`),
+  dashboard com gráfico de entradas x saídas (Recharts, confinado a este
+  módulo — ver `docs/decisoes.md`). Um recebimento registrado num pedido
+  gera um lançamento de entrada automático, orquestrado fora dos dois
+  módulos (`app/(app)/pedidos/[id]/financeiro-actions.ts`).
+- **`fiscal`** — interface `FiscalProvider` (emissão de NF-e/NFS-e,
+  consulta, cancelamento, download de PDF/XML) desacoplada de qualquer
+  provedor real — nenhum provedor concreto foi escolhido/implementado
+  ainda (decisão adiada pelo usuário). Decide NF-e (peça pronta vendida)
+  vs. NFS-e (serviço sobre peça do cliente) por item do pedido a partir
+  de `catalogoItemId`. Um `FakeFiscalProvider` exercita o fluxo
+  ponta a ponta em teste.
 
 Ver `docs/arquitetura.md` e `docs/decisoes.md` para a documentação viva
 (arquitetura, decisões técnicas).

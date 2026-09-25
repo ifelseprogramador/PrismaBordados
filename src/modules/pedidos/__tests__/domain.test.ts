@@ -4,6 +4,7 @@ import {
   calculateOrderTotal,
   calculateSaldo,
   isAdiantamentoAboveTotal,
+  isReceivableStatus,
   isTerminalStatus,
   isValidTransition,
   type PedidoStatus,
@@ -105,5 +106,22 @@ describe("isAdiantamentoAboveTotal", () => {
   it("não acusa quando adiantamento é igual ou menor", () => {
     expect(isAdiantamentoAboveTotal(10000, 10000)).toBe(false);
     expect(isAdiantamentoAboveTotal(10000, 5000)).toBe(false);
+  });
+});
+
+describe("isReceivableStatus", () => {
+  it("pedido cancelado nunca conta como 'a receber'", () => {
+    expect(isReceivableStatus("cancelado")).toBe(false);
+  });
+
+  it("pedido entregue também não conta (cobrança sai do pipeline)", () => {
+    expect(isReceivableStatus("entregue")).toBe(false);
+  });
+
+  it("estados em andamento contam como 'a receber'", () => {
+    const emAndamento: PedidoStatus[] = ["orcamento", "aprovado", "em_producao", "pronto"];
+    for (const status of emAndamento) {
+      expect(isReceivableStatus(status)).toBe(true);
+    }
   });
 });
