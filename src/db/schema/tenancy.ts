@@ -54,10 +54,14 @@ export const organizations = pgTable("organizations", {
   // Branding da organização (não do dono da plataforma) — aplicado no
   // shell do app para toda a equipe daquela organização. Só quem tem
   // `role === "owner"` edita (checado em `core/profile/actions.ts`, não
-  // em RLS separada). `primaryColor` é hex (ex.: "#2563eb"), sobrescreve
-  // `--primary` em `globals.css`; `logoUrl` aponta para um objeto no
-  // bucket público `branding` do Supabase Storage.
+  // em RLS separada). Cores em hex (ex.: "#2563eb"): `primaryColor`
+  // sobrescreve `--primary` (botões/destaques), `sidebarColor`
+  // sobrescreve `--sidebar` (fundo do menu lateral) — dois controles
+  // separados porque são tokens de tema independentes em `globals.css`,
+  // não um derivado do outro. `logoUrl` aponta para um objeto no bucket
+  // público `branding` do Supabase Storage.
   primaryColor: text("primary_color"),
+  sidebarColor: text("sidebar_color"),
   logoUrl: text("logo_url"),
 
   // Controle de acesso pelo dono da plataforma (área /admin). `status`

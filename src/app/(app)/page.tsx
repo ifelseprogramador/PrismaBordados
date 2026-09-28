@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ActionLink } from "@/components/action-link";
 import { Hint } from "@/components/hint";
 import { cn } from "@/lib/utils";
-import { getActiveOrg } from "@/core/auth";
+import { getActiveOrg, getSession } from "@/core/auth";
 import { formatCents } from "@/core/money";
 import { formatDate } from "@/core/format";
 import {
@@ -59,6 +59,7 @@ import {
 export default async function DashboardPage() {
   const [
     org,
+    user,
     pedidosSummary,
     clientes,
     financeiroSummary,
@@ -68,6 +69,7 @@ export default async function DashboardPage() {
     previsaoDespesas,
   ] = await Promise.all([
     getActiveOrg(),
+    getSession(),
     getPedidosDashboardSummary(),
     listClientes(),
     getFinanceiroDashboardSummary(),
@@ -76,6 +78,9 @@ export default async function DashboardPage() {
     getPrevisaoRecebimentos(),
     getPrevisaoDespesas(),
   ]);
+
+  const displayName =
+    (user?.user_metadata?.display_name as string | undefined) ?? org.organizationName;
 
   const lucroTone = financeiroSummary.lucroCents >= 0 ? "success" : "destructive";
   const totalDevidoGeralCents = clientesDevendo.reduce((sum, c) => sum + c.totalDevidoCents, 0);
@@ -87,7 +92,7 @@ export default async function DashboardPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Painel</h1>
-        <p className="text-muted-foreground text-sm">{org.organizationName}</p>
+        <p className="text-muted-foreground text-sm">{displayName}</p>
       </div>
 
       <section className="flex flex-col gap-3">

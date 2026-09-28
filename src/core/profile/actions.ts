@@ -106,13 +106,16 @@ export async function changeOwnPassword(
   return setNewPassword(formData);
 }
 
+const hexColorField = z
+  .string()
+  .trim()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Use uma cor no formato hexadecimal, ex.: #2563eb.")
+  .optional()
+  .or(z.literal("").transform(() => undefined));
+
 const brandingSchema = z.object({
-  primaryColor: z
-    .string()
-    .trim()
-    .regex(/^#[0-9a-fA-F]{6}$/, "Use uma cor no formato hexadecimal, ex.: #2563eb.")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
+  primaryColor: hexColorField,
+  sidebarColor: hexColorField,
 });
 
 const LOGO_BUCKET = "branding";
@@ -147,7 +150,10 @@ export async function updateOrganizationBranding(
     return { ok: false, message: "Só o dono da organização pode alterar a aparência do sistema." };
   }
 
-  const parsed = brandingSchema.safeParse({ primaryColor: formData.get("primaryColor") });
+  const parsed = brandingSchema.safeParse({
+    primaryColor: formData.get("primaryColor"),
+    sidebarColor: formData.get("sidebarColor"),
+  });
   if (!parsed.success) {
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
@@ -190,6 +196,7 @@ export async function updateOrganizationBranding(
       .update(organizations)
       .set({
         primaryColor: parsed.data.primaryColor ?? null,
+        sidebarColor: parsed.data.sidebarColor ?? null,
         ...(logoUrl && { logoUrl }),
         updatedAt: new Date(),
       })
@@ -217,10 +224,13 @@ export async function updateOrganizationBranding(
   return { ok: true };
 }
 
-/** Volta a cor primária pro padrão do sistema (remove o override — o
- * logo não é afetado, só a cor). Mesma checagem de permissão de
- * `updateOrganizationBranding`. */
-export async function resetOrganizationColor(): Promise<ActionResult> {
+/** Compartilhado pelos dois botões "Restaurar padrão" (cor de destaque e
+ * cor do menu lateral) — zera só a coluna pedida, mesma checagem de
+ * permissão de `updateOrganizationBranding`. */
+async function resetBrandingColorColumn(
+  column: "primaryColor" | "sidebarColor",
+  logLabel: string,
+): Promise<ActionResult> {
   const { organizationId, role, log, withDb } = await withOrg();
 
   if (role !== "owner") {
@@ -230,7 +240,7 @@ export async function resetOrganizationColor(): Promise<ActionResult> {
   const updated = await withDb((db) =>
     db
       .update(organizations)
-      .set({ primaryColor: null, updatedAt: new Date() })
+      .set({ [column]: null, updatedAt: new Date() })
       .where(eq(organizations.id, organizationId))
       .returning({ id: organizations.id }),
   );
@@ -244,8 +254,20 @@ export async function resetOrganizationColor(): Promise<ActionResult> {
     };
   }
 
-  log.info("perfil.branding.resetar_cor", { organizationId });
+  log.info(logLabel, { organizationId });
   revalidatePath("/", "layout");
   revalidatePath("/perfil");
   return { ok: true };
+}
+
+/** Volta a cor de destaque (botões) pro padrão do sistema — o logo e a
+ * cor do menu lateral não são afetados. */
+export async function resetOrganizationColor(): Promise<ActionResult> {
+  return resetBrandingColorColumn("primaryColor", "perfil.branding.resetar_cor");
+}
+
+/** Volta a cor do menu lateral pro padrão do sistema — o logo e a cor
+ * de destaque não são afetados. */
+export async function resetSidebarColor(): Promise<ActionResult> {
+  return resetBrandingColorColumn("sidebarColor", "perfil.branding.resetar_cor_lateral");
 }

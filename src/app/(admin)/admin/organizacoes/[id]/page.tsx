@@ -110,11 +110,11 @@ export default async function AdminOrganizationDetailPage({
               {members.map((m) => (
                 <li key={m.id} className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
+                    {/* m.name já resolve pra display_name (Perfil), senão
+                        e-mail, senão o próprio UID (core/user-lookup.ts)
+                        — nunca precisa repetir o e-mail aqui embaixo. */}
                     <p className="truncate">{m.name}</p>
-                    <p className="text-muted-foreground truncate font-mono text-xs">
-                      {m.email && m.email !== m.name ? `${m.email} · ` : ""}
-                      {m.userId}
-                    </p>
+                    <p className="text-muted-foreground truncate font-mono text-xs">{m.userId}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">{m.role === "owner" ? "Dono" : "Equipe"}</Badge>
