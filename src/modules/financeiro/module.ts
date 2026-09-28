@@ -14,5 +14,8 @@ registerModule({
 registerBackupTable({
   key: "financeiro_lancamentos",
   table: financeiroLancamentos,
-  dateColumns: ["date", "createdAt", "updatedAt"],
+  // `date` é coluna `date()` do Drizzle (modo string, "AAAA-MM-DD"), não
+  // `timestamp()` — não entra aqui (ver comentário equivalente em
+  // modules/pedidos/module.ts e core/backup.ts#reviveDates).
+  dateColumns: ["createdAt", "updatedAt"],
 });

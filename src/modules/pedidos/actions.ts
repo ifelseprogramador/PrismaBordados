@@ -373,3 +373,43 @@ export async function transitionPedidoStatus(
   revalidatePath("/pedidos");
   return { ok: true };
 }
+
+export interface DeletePedidoResult extends ActionResult {
+  customerId?: string;
+}
+
+/**
+ * Apaga o pedido e os itens dele (`pedido_itens.pedidoId` é `onDelete:
+ * "cascade"`, some sozinho). NÃO mexe em `fiscal_notas` — quem chama
+ * isto (`app/(app)/pedidos/[id]/delete-actions.ts`) precisa apagar as
+ * notas primeiro (`fiscal_notas.pedidoId` é `onDelete: "restrict"`,
+ * bloqueia este delete se sobrar alguma). Devolve `customerId` pra quem
+ * chamou decidir se o cliente (se já anonimizado/LGPD e sem mais nenhum
+ * outro pedido) também deve ser apagado — isso é orquestração entre
+ * módulos, não cabe aqui.
+ */
+export async function deletePedido(pedidoId: string): Promise<DeletePedidoResult> {
+  const { organizationId, log, withDb } = await withOrg();
+  log.info("pedidos.apagar", { pedidoId });
+
+  const result = await withDb(async (tx) => {
+    const [pedido] = await tx
+      .select({ id: pedidos.id, customerId: pedidos.customerId })
+      .from(pedidos)
+      .where(and(eq(pedidos.id, pedidoId), eq(pedidos.organizationId, organizationId)))
+      .limit(1);
+    if (!pedido) return null;
+
+    await tx.delete(pedidos).where(eq(pedidos.id, pedidoId));
+    return pedido;
+  });
+
+  if (!result) {
+    log.warn("pedidos.apagar.nao_encontrado", { pedidoId });
+    return { ok: false, message: "Pedido não encontrado." };
+  }
+
+  log.info("pedidos.apagar.sucesso", { pedidoId });
+  revalidatePath("/pedidos");
+  return { ok: true, customerId: result.customerId };
+}

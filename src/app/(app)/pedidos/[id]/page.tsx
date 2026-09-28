@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Printer } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Hint } from "@/components/hint";
 import { formatCents } from "@/core/money";
@@ -15,6 +16,7 @@ import { PedidoItensTable } from "@/modules/pedidos/components/pedido-itens-tabl
 import { PedidoItemForm } from "@/modules/pedidos/components/pedido-item-form";
 import { AdiantamentoForm } from "@/modules/pedidos/components/adiantamento-form";
 import { registrarRecebimentoPedido } from "./financeiro-actions";
+import { deletePedidoCompleto } from "./delete-actions";
 import { EmitirNotaButton } from "./emitir-nota-button";
 import { listFiscalNotasByPedido, FiscalNotasList } from "@/modules/fiscal";
 
@@ -31,22 +33,36 @@ export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[
     notFound();
   }
 
+  const temNotaEmitida = fiscalNotas.some((n) => n.status === "emitida");
+  const deletePedidoWithId = deletePedidoCompleto.bind(null, pedido.id);
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <BackButton href="/pedidos" />
         <h1 className="text-2xl font-semibold tracking-tight">Pedido #{pedido.number}</h1>
         <PedidoStatusBadge status={pedido.status} />
-        <Button
-          variant="outline"
-          size="sm"
-          className="ml-auto"
-          nativeButton={false}
-          render={<Link href={`/pedidos/${pedido.id}/imprimir`} target="_blank" />}
-        >
-          <Printer className="h-4 w-4" />
-          Imprimir
-        </Button>
+        <div className="ml-auto flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href={`/pedidos/${pedido.id}/imprimir`} target="_blank" />}
+          >
+            <Printer className="h-4 w-4" />
+            Imprimir
+          </Button>
+          <ConfirmDeleteButton
+            title={`Apagar o pedido #${pedido.number}`}
+            description={
+              temNotaEmitida
+                ? "Este pedido já tem nota fiscal EMITIDA. Apagar aqui apaga o pedido e a nota fiscal junto — a nota some do sistema, mas o documento emitido continua existindo perante o fisco (você é responsável por regularizar isso fora daqui, ex.: cancelamento formal). Tem certeza que quer apagar mesmo assim?"
+                : "Remove o pedido e os itens dele. Não afeta o cliente. Essa ação não pode ser desfeita."
+            }
+            onConfirm={deletePedidoWithId}
+            redirectTo="/pedidos"
+          />
+        </div>
       </div>
 
       <Card>

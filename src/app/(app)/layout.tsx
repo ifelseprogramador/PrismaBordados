@@ -92,7 +92,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="border-sidebar-border flex items-center gap-2 border-b px-4 py-3.5">
             {org.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- URL dinâmica do Supabase Storage, fora do domínio de imagens do Next.
-              <img src={org.logoUrl} alt={org.organizationName} className="h-6 w-auto" />
+              <img
+                src={org.logoUrl}
+                alt={org.organizationName}
+                className="h-6 w-auto object-contain"
+              />
             ) : (
               <>
                 <Gem className="text-sidebar-primary h-5 w-5" />

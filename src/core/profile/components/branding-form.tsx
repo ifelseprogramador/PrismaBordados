@@ -129,7 +129,15 @@ export function BrandingForm({
         <Label htmlFor="logo">Logo</Label>
         {preview && (
           // eslint-disable-next-line @next/next/no-img-element -- URL dinâmica do Supabase Storage, fora do domínio de imagens do Next.
-          <img src={preview} alt="Logo atual" className="h-12 w-auto rounded border bg-white p-1" />
+          <img
+            src={preview}
+            alt="Logo atual"
+            // `self-start`: sem isso, o container flex-col (align-items:
+            // stretch por padrão) esticava a imagem pra largura total,
+            // deformando ela — `w-auto` sozinho não basta porque
+            // `width: auto` ainda conta como "auto" pro stretch do flex.
+            className="h-12 w-auto self-start rounded border bg-white object-contain p-1"
+          />
         )}
         <Input
           id="logo"

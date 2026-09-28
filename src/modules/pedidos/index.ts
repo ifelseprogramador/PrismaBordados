@@ -36,7 +36,9 @@ export {
   registerAdiantamento,
   incrementarAdiantamento,
   transitionPedidoStatus,
+  deletePedido,
   type InsertResult,
   type IncrementarAdiantamentoResult,
+  type DeletePedidoResult,
 } from "./actions";
 export { PEDIDO_STATUS_LABELS, PedidoStatusBadge } from "./components/pedido-status-badge";

@@ -15,10 +15,13 @@ registerModule({
 registerBackupTable({
   key: "pedidos",
   table: pedidos,
+  // NUNCA incluir orderDate/deliveryDate/paymentDueDate aqui: são
+  // colunas `date()` do Drizzle (modo string, "AAAA-MM-DD"), não
+  // `timestamp()` — reviver essas como `Date` quebra o insert de
+  // restauração ("must be of type string ... Received an instance of
+  // Date"). Só timestamp precisa virar `Date` de novo (ver
+  // core/backup.ts#reviveDates).
   dateColumns: [
-    "orderDate",
-    "deliveryDate",
-    "paymentDueDate",
     "approvedAt",
     "startedAt",
     "readyAt",

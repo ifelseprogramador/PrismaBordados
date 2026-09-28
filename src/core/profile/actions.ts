@@ -204,18 +204,22 @@ export async function updateOrganizationBranding(
     logoUrl = `${publicUrl.publicUrl}?v=${Date.now()}`;
   }
 
+  const setValues = {
+    primaryColor: parsed.data.primaryColor ?? null,
+    sidebarColor: parsed.data.sidebarColor ?? null,
+    ...(logoUrl && { logoUrl }),
+    updatedAt: new Date(),
+  };
+  log.info("perfil.branding.set_values", { setValues });
+
   const updated = await withDb((db) =>
-    db
-      .update(organizations)
-      .set({
-        primaryColor: parsed.data.primaryColor ?? null,
-        sidebarColor: parsed.data.sidebarColor ?? null,
-        ...(logoUrl && { logoUrl }),
-        updatedAt: new Date(),
-      })
-      .where(eq(organizations.id, organizationId))
-      .returning({ id: organizations.id }),
+    db.update(organizations).set(setValues).where(eq(organizations.id, organizationId)).returning({
+      id: organizations.id,
+      primaryColor: organizations.primaryColor,
+      sidebarColor: organizations.sidebarColor,
+    }),
   );
+  log.info("perfil.branding.returning", { updated });
 
   // Nunca reportar sucesso sem checar isto: com RLS ativa, uma policy
   // que não libere a escrita bloqueia silenciosamente (0 linhas

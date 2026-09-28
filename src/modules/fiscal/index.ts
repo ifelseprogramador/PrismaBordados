@@ -29,6 +29,7 @@ export {
   emitirNotaFiscal,
   cancelarNotaFiscal,
   saveFiscalCredentials,
+  deleteFiscalNotasForPedido,
   type EmitirNotaFiscalInput,
 } from "./actions";
 export { FiscalNotasList } from "./components/fiscal-notas-list";

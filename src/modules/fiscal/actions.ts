@@ -172,3 +172,28 @@ export async function saveFiscalCredentials(
   revalidatePath("/fiscal");
   return { ok: true };
 }
+
+/**
+ * Apaga TODAS as notas (de qualquer status, incluindo "emitida") de um
+ * pedido — chamado só pela orquestração de exclusão de pedido
+ * (`app/(app)/pedidos/[id]/delete-actions.ts`), nunca direto pela UI.
+ * `fiscal_notas.pedidoId` é `onDelete: "restrict"`, então apagar o
+ * pedido exige apagar as notas primeiro; a UI avisa antes se alguma
+ * nota já foi emitida de verdade (ver `FiscalNotasList`/warning na
+ * página de detalhe do pedido) — aqui só executa o que já foi
+ * confirmado, sem checar de novo.
+ */
+export async function deleteFiscalNotasForPedido(pedidoId: string): Promise<ActionResult> {
+  const { organizationId, log, withDb } = await withOrg();
+
+  await withDb((db) =>
+    db
+      .delete(fiscalNotas)
+      .where(
+        and(eq(fiscalNotas.pedidoId, pedidoId), eq(fiscalNotas.organizationId, organizationId)),
+      ),
+  );
+
+  log.info("fiscal.notas.apagar_do_pedido", { pedidoId });
+  return { ok: true };
+}
