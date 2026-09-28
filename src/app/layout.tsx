@@ -16,10 +16,29 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const TITLE = "Prisma";
+// Mesmo slogan genérico da tela de login (`(auth)/login/page.tsx`) — de
+// propósito sem mencionar "bordado": o nome do sistema não deve amarrar
+// a apresentação a um vertical de negócio específico (pedido do
+// usuário), e essa descrição é o que aparece ao compartilhar um link
+// (WhatsApp, Slack, etc. — via `openGraph`/`twitter` abaixo e
+// `opengraph-image.tsx`).
+const DESCRIPTION = "Gestão completa para o seu negócio.";
+
 export const metadata: Metadata = {
-  title: "Prisma",
-  description:
-    "Prisma — ERP para bordados eletrônicos (multi-tenant, módulos de clientes, catálogo e pedidos).",
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    type: "website",
+    locale: "pt_BR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

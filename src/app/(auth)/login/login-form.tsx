@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,14 @@ const initialState: LoginState = {};
 
 export function LoginForm() {
   const [state, formAction, isPending] = useActionState(login, initialState);
+  // Campos controlados de propósito: o React reseta campo não
+  // controlado de formulário assim que a action termina de processar
+  // (mesmo em erro, não só sucesso — comportamento do próprio React 19
+  // pra <form action={fn}>). Sem isso, e-mail e senha somem da tela
+  // toda vez que o login falha, obrigando a pessoa a digitar tudo de
+  // novo.
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -24,6 +32,8 @@ export function LoginForm() {
           autoComplete="email"
           required
           disabled={isPending}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
       </div>
       <div className="flex flex-col gap-2">
@@ -39,6 +49,8 @@ export function LoginForm() {
           autoComplete="current-password"
           required
           disabled={isPending}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
         />
       </div>
       {state.error && <p className="text-destructive text-sm">{state.error}</p>}

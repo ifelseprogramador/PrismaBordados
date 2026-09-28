@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -26,9 +26,26 @@ export function ChangePasswordForm({
 }) {
   const [state, formAction, isPending] = useActionState(action, initialState);
   const errors = state.errors ?? {};
+  // Campos controlados de propósito: o React reseta campo não
+  // controlado de formulário assim que a action termina de processar,
+  // mesmo em erro (ver login-form.tsx) — sem isso, um erro de validação
+  // (ex.: senhas não coincidem) apagava as duas senhas, obrigando a
+  // digitar tudo de novo.
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
-    if (state.ok && showSuccessToast) toast.success("Senha atualizada.");
+    if (state.ok) {
+      if (showSuccessToast) toast.success("Senha atualizada.");
+      // Aqui sim limpa — depois de salvar com sucesso, não faz sentido
+      // deixar a senha nova visível na tela. Reagindo a `state.ok` (o
+      // resultado da Server Action, um sistema externo) mudar, não
+      // espelhando render — mesmo caso citado na doc do React como uso
+      // válido de efeito.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPassword("");
+      setConfirmPassword("");
+    }
   }, [state, showSuccessToast]);
 
   return (
@@ -41,6 +58,8 @@ export function ChangePasswordForm({
           autoComplete="new-password"
           required
           minLength={6}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
         />
         {errors.password?.map((e) => (
           <p key={e} className="text-destructive text-sm">
@@ -56,6 +75,8 @@ export function ChangePasswordForm({
           autoComplete="new-password"
           required
           minLength={6}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
         />
         {errors.confirmPassword?.map((e) => (
           <p key={e} className="text-destructive text-sm">
