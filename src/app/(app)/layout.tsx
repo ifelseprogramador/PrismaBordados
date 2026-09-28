@@ -20,6 +20,7 @@ import { listNotificationsForCurrentUser } from "@/core/notifications/queries";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { VersionBadge } from "@/components/version-badge";
+import { OrgBrandingStyle } from "@/components/org-branding-style";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -56,6 +57,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     throw err;
   }
 
+  const displayName = (user?.user_metadata?.display_name as string | undefined) ?? org.userEmail;
+
   const { withDb } = await withOrg();
   const modules = await withDb((tx) => getEnabledModulesForOrg(tx, org.organizationId));
   const stopImpersonationWithId = stopImpersonation.bind(null, org.organizationId);
@@ -66,12 +69,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const notifications = await listNotificationsForCurrentUser();
 
   return (
-    <div
-      className="flex min-h-screen flex-1 flex-col"
-      style={
-        org.primaryColor ? ({ "--primary": org.primaryColor } as React.CSSProperties) : undefined
-      }
-    >
+    <div className="flex min-h-screen flex-1 flex-col">
+      <OrgBrandingStyle primaryColor={org.primaryColor} />
       {org.impersonating && (
         <div className="flex items-center justify-between bg-amber-500 px-4 py-2 text-sm font-medium text-amber-950 print:hidden">
           <span className="flex items-center gap-2">
@@ -119,9 +118,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   render={
                     <Button variant="ghost" size="sm" className="gap-2">
                       <User className="h-4 w-4" />
-                      <span className="text-muted-foreground hidden sm:inline">
-                        {org.userEmail}
-                      </span>
+                      <span className="text-muted-foreground hidden sm:inline">{displayName}</span>
                     </Button>
                   }
                 />

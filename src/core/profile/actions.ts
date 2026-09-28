@@ -185,7 +185,7 @@ export async function updateOrganizationBranding(
     logoUrl = `${publicUrl.publicUrl}?v=${Date.now()}`;
   }
 
-  await withDb((db) =>
+  const updated = await withDb((db) =>
     db
       .update(organizations)
       .set({
@@ -193,10 +193,58 @@ export async function updateOrganizationBranding(
         ...(logoUrl && { logoUrl }),
         updatedAt: new Date(),
       })
-      .where(eq(organizations.id, organizationId)),
+      .where(eq(organizations.id, organizationId))
+      .returning({ id: organizations.id }),
   );
 
+  // Nunca reportar sucesso sem checar isto: com RLS ativa, uma policy
+  // que não libere a escrita bloqueia silenciosamente (0 linhas
+  // afetadas, sem erro nenhum) — foi exatamente o bug que existiu aqui
+  // antes da policy/trigger de owner em migrations-custom (ver
+  // docs/decisoes.md).
+  if (updated.length === 0) {
+    log.error("perfil.branding.sem_permissao", { organizationId });
+    return {
+      ok: false,
+      message:
+        "Não foi possível salvar — você pode não ter permissão para alterar esta organização.",
+    };
+  }
+
   log.info("perfil.branding.atualizar", { organizationId });
+  revalidatePath("/", "layout");
+  revalidatePath("/perfil");
+  return { ok: true };
+}
+
+/** Volta a cor primária pro padrão do sistema (remove o override — o
+ * logo não é afetado, só a cor). Mesma checagem de permissão de
+ * `updateOrganizationBranding`. */
+export async function resetOrganizationColor(): Promise<ActionResult> {
+  const { organizationId, role, log, withDb } = await withOrg();
+
+  if (role !== "owner") {
+    return { ok: false, message: "Só o dono da organização pode alterar a aparência do sistema." };
+  }
+
+  const updated = await withDb((db) =>
+    db
+      .update(organizations)
+      .set({ primaryColor: null, updatedAt: new Date() })
+      .where(eq(organizations.id, organizationId))
+      .returning({ id: organizations.id }),
+  );
+
+  if (updated.length === 0) {
+    log.error("perfil.branding.sem_permissao", { organizationId });
+    return {
+      ok: false,
+      message:
+        "Não foi possível salvar — você pode não ter permissão para alterar esta organização.",
+    };
+  }
+
+  log.info("perfil.branding.resetar_cor", { organizationId });
   revalidatePath("/", "layout");
   revalidatePath("/perfil");
   return { ok: true };

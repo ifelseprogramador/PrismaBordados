@@ -1168,3 +1168,49 @@ quase idênticas da mesma query SQL bruta. `ResetMemberPasswordButton`
 trocou a prop `email` por `label` — o texto do dialog também foi
 atualizado (não fala mais em "usar Esqueci minha senha depois", já que
 agora a troca é obrigatória via `must_change_password`).
+
+## 2026-09-28 (cont.) — Branding (cor/logo) nunca persistia: faltava policy de UPDATE pro owner em `organizations`
+
+Bug reportado em produção: salvar cor/logo em `/perfil` mostrava
+sucesso, mas nada mudava. Causa raiz: `organizations` só tinha a policy
+`organizations_admin_write` (RLS ativa, só platform admin —
+0001_rls_policies.sql), então o `UPDATE` da Server Action batia
+sistematicamente em **0 linhas**, sem erro nenhum (RLS bloqueia
+silenciosamente) — e a action não checava `.returning()`, então via
+aquilo como sucesso. Corrigido primeiro no BaseERP (mesma data) —
+`base-erp/docs/decisoes.md` tem o detalhe completo do raciocínio (por
+que policy + trigger, não GRANT por coluna). Resumo replicado aqui:
+
+- **`migrations-custom/0009_organizations_owner_branding.sql`** — nova
+  função `current_owner_org_ids()` (filtra `role = 'owner'`, diferente
+  de `current_org_ids()`) + policy de UPDATE liberando o owner + um
+  trigger (`restrict_organization_branding_update`) rejeitando qualquer
+  mudança fora de `primary_color`/`logo_url`/`updated_at` quando quem
+  edita não é platform admin — é o mesmo papel de banco pros dois, não
+  dá pra restringir por coluna só com `GRANT`.
+- **`core/profile/actions.ts#updateOrganizationBranding`** — passou a
+  checar `.returning()` e devolver erro se vier vazio, em vez de
+  "sucesso" — rede de segurança contra RLS bloqueando silenciosamente
+  de novo no futuro. Mesmo padrão aplicado em
+  `resetOrganizationColor` (botão novo, ver abaixo).
+
+Também trocada a forma de aplicar a cor: em vez de `style` inline num
+`<div>` (dependia de como o Tailwind v4 compila `@theme inline`, incerto
+o bastante pra não confiar sem testar contra produção),
+`components/org-branding-style.tsx` injeta um
+`<style>:root{--primary:...}</style>` — sem depender de indireção de
+variável CSS em elemento aninhado.
+
+Pedidos adicionais do mesmo teste em produção:
+
+- Cabeçalho passou a mostrar `user_metadata.display_name` (fallback:
+  e-mail) no menu da pessoa, em vez do e-mail cru.
+- "Pessoas com acesso"/"Histórico" voltaram a mostrar o UUID, agora
+  **junto** com o nome (o fix anterior tinha tirado o UUID de vez — o
+  dono da plataforma quis manter os dois, útil pra achar alguém no
+  dashboard do Supabase).
+- Botão "Restaurar cor padrão" em `/perfil`
+  (`core/profile/actions.ts#resetOrganizationColor`) — zera
+  `primaryColor` (não mexe no logo). O `<input type="color">` não é
+  controlado, então o componente usa `key={primaryColor}` pra forçar
+  remontagem com o novo `defaultValue` depois que o server revalida.

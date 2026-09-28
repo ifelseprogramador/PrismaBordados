@@ -24,6 +24,36 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.2.0",
+    date: "2026-09-28",
+    changes: [
+      {
+        type: "novo",
+        text: "Quem entra pela primeira vez com uma senha provisória (criada pelo administrador) agora é obrigado a trocar a senha antes de acessar qualquer tela. Se esquecer a senha depois, o administrador pode gerar uma nova senha provisória a qualquer momento, sem apagar nada do que já foi cadastrado.",
+      },
+      {
+        type: "novo",
+        text: "Chegou o menu Perfil (clique no seu nome, no canto superior direito): dá pra trocar o nome de exibição, o tema claro/escuro e a senha. Quem é dono da organização também escolhe ali a cor e o logo que aparecem pra toda a equipe.",
+      },
+      {
+        type: "correcao",
+        text: 'Na área do administrador, a lista de "Pessoas com acesso" de cada organização e o histórico de ações mostravam só um código longo (o identificador interno da conta). Agora mostram o nome da pessoa junto com esse código.',
+      },
+      {
+        type: "correcao",
+        text: "A cor e o logo escolhidos em Perfil não estavam sendo salvos de verdade, mesmo a tela avisando que tinha dado certo. Corrigido — agora salvam e aparecem no sistema pra toda a equipe.",
+      },
+      {
+        type: "novo",
+        text: 'Em Perfil, quem é dono da organização agora tem um botão "Restaurar cor padrão" para desfazer a personalização de cor e voltar à cor original do sistema.',
+      },
+      {
+        type: "melhoria",
+        text: "O cabeçalho agora mostra seu nome de exibição (definido em Perfil) em vez do e-mail.",
+      },
+    ],
+  },
+  {
     version: "0.1.0",
     date: "2026-09-24",
     changes: [

@@ -111,9 +111,10 @@ export default async function AdminOrganizationDetailPage({
                 <li key={m.id} className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate">{m.name}</p>
-                    {m.email && m.email !== m.name && (
-                      <p className="text-muted-foreground truncate text-xs">{m.email}</p>
-                    )}
+                    <p className="text-muted-foreground truncate font-mono text-xs">
+                      {m.email && m.email !== m.name ? `${m.email} · ` : ""}
+                      {m.userId}
+                    </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">{m.role === "owner" ? "Dono" : "Equipe"}</Badge>
