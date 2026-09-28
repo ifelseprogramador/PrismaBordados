@@ -288,3 +288,51 @@ export async function resetOrganizationColor(): Promise<ActionResult> {
 export async function resetSidebarColor(): Promise<ActionResult> {
   return resetBrandingColorColumn("sidebarColor", "perfil.branding.resetar_cor_lateral");
 }
+
+/** Remove o logo customizado — volta a mostrar a marca oficial do
+ * sistema (ícone + nome) no lugar. Apaga também o objeto no Storage
+ * (não só o ponteiro no banco), pra não deixar arquivo órfão. */
+export async function resetOrganizationLogo(): Promise<ActionResult> {
+  const { organizationId, role, log, withDb } = await withOrg();
+
+  if (role !== "owner") {
+    return { ok: false, message: "Só o dono da organização pode alterar a aparência do sistema." };
+  }
+
+  try {
+    const supabaseAdmin = createSupabaseAdminClient();
+    const { data: files } = await supabaseAdmin.storage.from(LOGO_BUCKET).list(organizationId);
+    if (files && files.length > 0) {
+      await supabaseAdmin.storage
+        .from(LOGO_BUCKET)
+        .remove(files.map((f) => `${organizationId}/${f.name}`));
+    }
+  } catch (err) {
+    // Não bloqueia a remoção do ponteiro no banco por causa disso — na
+    // pior hipótese fica um arquivo órfão no bucket, não um bug visível
+    // pra quem usa o sistema.
+    log.error("perfil.branding.logo_storage_falhou", { err });
+  }
+
+  const updated = await withDb((db) =>
+    db
+      .update(organizations)
+      .set({ logoUrl: null, updatedAt: new Date() })
+      .where(eq(organizations.id, organizationId))
+      .returning({ id: organizations.id }),
+  );
+
+  if (updated.length === 0) {
+    log.error("perfil.branding.sem_permissao", { organizationId });
+    return {
+      ok: false,
+      message:
+        "Não foi possível salvar — você pode não ter permissão para alterar esta organização.",
+    };
+  }
+
+  log.info("perfil.branding.resetar_logo", { organizationId });
+  revalidatePath("/", "layout");
+  revalidatePath("/perfil");
+  return { ok: true };
+}
