@@ -19,9 +19,14 @@ import {
   pedidoCounters,
   pedidoItens,
   pedidos,
+  platformAdmins,
 } from "@/db/schema";
 import { getBusinessTypePreset } from "@/core/business-type-presets";
-import { parseBillingFormData, parseNewOrganizationFormData } from "./validation";
+import {
+  parseBillingFormData,
+  parseNewOrganizationFormData,
+  parseOrganizationNameFormData,
+} from "./validation";
 
 /**
  * Modo suporte: o admin passa a acessar `/` (o app) como se fosse o dono
@@ -254,6 +259,52 @@ export async function updateBilling(
   }
 }
 
+/** O dono da plataforma corrige o nome de uma organização depois de
+ * criada — não editável em nenhum outro lugar (o próprio dono da
+ * organização não tem essa opção em `/perfil`, só branding). */
+export async function updateOrganizationName(
+  organizationId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const { userId, log, withDb } = await requireAdmin();
+
+  const parsed = parseOrganizationNameFormData(formData);
+  if (!parsed.success) {
+    return { ok: false, errors: parsed.error.flatten().fieldErrors };
+  }
+
+  try {
+    const updated = await withDb((db) =>
+      db
+        .update(organizations)
+        .set({ name: parsed.data.name, updatedAt: new Date() })
+        .where(eq(organizations.id, organizationId))
+        .returning({ id: organizations.id }),
+    );
+
+    if (updated.length === 0) {
+      return { ok: false, message: "Organização não encontrada." };
+    }
+
+    log.info("admin.organizacao.renomear", { organizationId, name: parsed.data.name });
+    await withDb((db) =>
+      recordAudit(db, {
+        actorUserId: userId,
+        organizationId,
+        action: "organizacao.renomear",
+        metadata: { name: parsed.data.name },
+      }),
+    );
+    revalidatePath(`/admin/organizacoes/${organizationId}`);
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (err) {
+    log.error("admin.organizacao.renomear.falhou", { organizationId, err });
+    return { ok: false, message: "Não foi possível salvar. Tente novamente." };
+  }
+}
+
 /** Liga/desliga um módulo especificamente para uma organização
  * (personalização — ver core/module-settings.ts). */
 export async function setModuleEnabledForOrg(
@@ -335,6 +386,17 @@ export async function hardDeleteOrganization(
     };
   }
 
+  // Precisa ser lido ANTES de apagar `memberships` na transação abaixo —
+  // são os e-mails do Supabase Auth que também vão embora (ver comentário
+  // mais abaixo, perto do loop de `deleteUser`).
+  const memberUserIds = await withDb((db) =>
+    db
+      .select({ userId: memberships.userId })
+      .from(memberships)
+      .where(eq(memberships.organizationId, organizationId))
+      .then((rows) => rows.map((r) => r.userId)),
+  );
+
   try {
     await withDb(async (db) => {
       await db.transaction(async (tx) => {
@@ -386,6 +448,34 @@ export async function hardDeleteOrganization(
   } catch (err) {
     log.error("admin.organizacao.apagar_tudo.falhou", { organizationId, err });
     return { ok: false, message: "Não foi possível apagar. Tente novamente." };
+  }
+
+  // Apaga também a conta de autenticação de cada pessoa que só
+  // pertencia a esta organização (MVP: uma pessoa pertence a uma
+  // organização só — ver core/auth.ts#getActiveOrg) — senão "apagar
+  // todos os dados" deixava o e-mail/senha da pessoa presos no Supabase
+  // Auth pra sempre, sem nenhuma organização que os use. Melhor esforço:
+  // os dados da organização já foram apagados de verdade (irreversível)
+  // acima, então uma falha aqui só fica registrada no log, nunca desfaz
+  // o que já aconteceu. Nunca apaga quem também é platform admin.
+  const supabaseAdmin = createSupabaseAdminClient();
+  for (const memberUserId of memberUserIds) {
+    try {
+      const [adminRow] = await withDb((db) =>
+        db
+          .select({ userId: platformAdmins.userId })
+          .from(platformAdmins)
+          .where(eq(platformAdmins.userId, memberUserId))
+          .limit(1),
+      );
+      if (adminRow) continue;
+
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(memberUserId);
+      if (error) throw error;
+      log.info("admin.organizacao.apagar_tudo.usuario_removido", { memberUserId });
+    } catch (err) {
+      log.error("admin.organizacao.apagar_tudo.usuario_falhou", { memberUserId, err });
+    }
   }
 
   revalidatePath("/admin");

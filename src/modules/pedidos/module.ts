@@ -18,6 +18,7 @@ registerBackupTable({
   dateColumns: [
     "orderDate",
     "deliveryDate",
+    "paymentDueDate",
     "approvedAt",
     "startedAt",
     "readyAt",

@@ -37,7 +37,12 @@ export async function getUserDisplayInfoByIds(
     id: string;
     email: string | null;
     display_name: string | null;
-  }>(sql`select * from public.get_user_display_info(${ids}::uuid[])`);
+  }>(
+    sql`select * from public.get_user_display_info(array[${sql.join(
+      ids.map((id) => sql`${id}::uuid`),
+      sql`, `,
+    )}])`,
+  );
 
   return new Map(
     Array.from(rows).map((u) => [

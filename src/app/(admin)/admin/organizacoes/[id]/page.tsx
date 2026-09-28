@@ -4,7 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAdmin } from "@/core/admin-auth";
 import { getOrganizationForAdmin } from "@/core/admin/queries";
-import { hardDeleteOrganization, updateBilling } from "@/core/admin/actions";
+import {
+  hardDeleteOrganization,
+  updateBilling,
+  updateOrganizationName,
+} from "@/core/admin/actions";
+import { OrganizationNameForm } from "@/core/admin/components/organization-name-form";
 import { OrgStatusToggle } from "@/core/admin/components/org-status-toggle";
 import { ImpersonateButton } from "@/core/admin/components/impersonate-button";
 import { BillingForm } from "@/core/admin/components/billing-form";
@@ -33,6 +38,7 @@ export default async function AdminOrganizationDetailPage({
   const { organization: org, members, moduleSettings, audit } = data;
   const updateBillingWithId = updateBilling.bind(null, org.id);
   const hardDeleteWithId = hardDeleteOrganization.bind(null, org.id);
+  const updateNameWithId = updateOrganizationName.bind(null, org.id);
 
   const overrideBySlug = new Map(moduleSettings.map((m) => [m.moduleSlug, m.enabled]));
   const modules = getAllModules().map((m) => ({
@@ -47,7 +53,10 @@ export default async function AdminOrganizationDetailPage({
         <div className="flex min-w-0 items-start gap-2">
           <BackButton href="/admin" />
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold tracking-tight">{org.name}</h1>
+            <div className="flex items-center gap-1">
+              <h1 className="truncate text-2xl font-semibold tracking-tight">{org.name}</h1>
+              <OrganizationNameForm currentName={org.name} action={updateNameWithId} />
+            </div>
             <div className="mt-1 flex flex-wrap gap-2">
               <Badge variant={org.status === "blocked" ? "destructive" : "secondary"}>
                 {org.status === "blocked" ? "Bloqueada" : "Ativa"}

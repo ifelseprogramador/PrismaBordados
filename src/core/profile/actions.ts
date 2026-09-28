@@ -150,9 +150,22 @@ export async function updateOrganizationBranding(
     return { ok: false, message: "Só o dono da organização pode alterar a aparência do sistema." };
   }
 
+  const rawPrimaryColor = formData.get("primaryColor");
+  const rawSidebarColor = formData.get("sidebarColor");
   const parsed = brandingSchema.safeParse({
-    primaryColor: formData.get("primaryColor"),
-    sidebarColor: formData.get("sidebarColor"),
+    primaryColor: rawPrimaryColor,
+    sidebarColor: rawSidebarColor,
+  });
+  // TODO(temporário): as cores estavam chegando nulas no banco mesmo
+  // depois de escolhidas — este log mostra o valor bruto recebido do
+  // form pra diagnosticar se o problema é no cliente (valor nunca
+  // chega) ou no parse/persistência (chega, mas não é gravado). Remover
+  // depois de confirmar a causa (ver docs/decisoes.md).
+  log.info("perfil.branding.form_recebido", {
+    rawPrimaryColor,
+    rawSidebarColor,
+    parsedOk: parsed.success,
+    parsedErrors: parsed.success ? undefined : parsed.error.flatten().fieldErrors,
   });
   if (!parsed.success) {
     return { ok: false, errors: parsed.error.flatten().fieldErrors };

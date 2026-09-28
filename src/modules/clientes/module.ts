@@ -14,5 +14,5 @@ registerModule({
 registerBackupTable({
   key: "clientes",
   table: clientes,
-  dateColumns: ["createdAt", "updatedAt"],
+  dateColumns: ["anonymizedAt", "createdAt", "updatedAt"],
 });
