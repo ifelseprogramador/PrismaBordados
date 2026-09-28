@@ -1214,3 +1214,28 @@ Pedidos adicionais do mesmo teste em produção:
   `primaryColor` (não mexe no logo). O `<input type="color">` não é
   controlado, então o componente usa `key={primaryColor}` pra forçar
   remontagem com o novo `defaultValue` depois que o server revalida.
+
+## 2026-09-28 — Backup gerava `tables: {}` em produção (load-modules não rodava em Route Handlers)
+
+**Sintoma**: exportar backup (usuário ou admin) gerava um JSON válido mas
+com `"tables": {}` — nenhum dado de negócio incluído.
+
+**Causa raiz**: `BACKUP_TABLES` (array em memória em `core/backup.ts`) é
+populado via efeito colateral dos `registerBackupTable(...)` chamados em
+cada `modules/<modulo>/module.ts`, que por sua vez são importados
+exclusivamente por `core/load-modules.ts`. Este arquivo é importado no
+topo do `app/(app)/layout.tsx` e `app/(admin)/layout.tsx` — mas **Route
+Handlers do Next.js não passam pelo `layout.tsx`**. Resultado: nas rotas
+de API abaixo, `BACKUP_TABLES` estava sempre vazio:
+
+- `app/(app)/backup/exportar/route.ts` (backup manual do usuário)
+- `app/(admin)/admin/backup/exportar/route.ts` (backup do sistema — admin)
+- `app/api/cron/backup/route.ts` (backup automático diário — cron)
+
+**Correção**: adicionado `import "@/core/load-modules"` como primeira linha
+de cada um desses três Route Handlers, com comentário explicando o porquê.
+
+**Regra derivada**: qualquer Route Handler que dependa de registros
+realizados via efeito colateral (backup, módulos, etc.) deve importar
+`core/load-modules` explicitamente — nunca assumir que o `layout.tsx`
+já rodou naquele contexto.

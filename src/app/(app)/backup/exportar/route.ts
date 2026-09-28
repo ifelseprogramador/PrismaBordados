@@ -1,12 +1,13 @@
+import "@/core/load-modules"; // Route Handlers não passam pelo layout.tsx — importar aqui garante que registerBackupTable de cada módulo já rodou antes de buildOrgBackup iterar sobre BACKUP_TABLES.
 import { getActiveOrg, withOrg } from "@/core/auth";
 import { buildOrgBackup } from "@/core/backup";
 
 /**
  * Backup completo da organização em JSON — estrutura (colunas + tipos,
  * lidos direto do schema Drizzle) e dados de todas as tabelas de negócio
- * REGISTRADAS via `registerBackupTable` (ver `core/backup.ts`). BaseERP
- * não tem módulo nenhum ainda, então o arquivo sai com `tables: {}` — um
- * vertical que registre módulos passa a ter conteúdo aqui automaticamente.
+ * REGISTRADAS via `registerBackupTable` (ver `core/backup.ts` e
+ * `core/load-modules.ts`). Módulos registrados: clientes,
+ * catalogo_bordado_itens, pedidos.
  */
 export async function GET() {
   const [{ log, withDb }, activeOrg] = await Promise.all([withOrg(), getActiveOrg()]);

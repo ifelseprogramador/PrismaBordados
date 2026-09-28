@@ -1,3 +1,4 @@
+import "@/core/load-modules"; // Route Handler não passa pelo layout.tsx — garante que registerBackupTable de cada módulo rodou antes do cron executar buildOrgBackup.
 import { NextRequest } from "next/server";
 import { requireEnv } from "@/core/env";
 import { logger } from "@/core/logger";

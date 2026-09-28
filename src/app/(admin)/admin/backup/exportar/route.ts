@@ -1,3 +1,4 @@
+import "@/core/load-modules"; // Route Handler não passa pelo layout.tsx — garante que registerBackupTable de cada módulo rodou antes de buildSystemBackup.
 import { NotPlatformAdminError, requireAdmin } from "@/core/admin-auth";
 import { buildSystemBackup } from "@/core/backup";
 
