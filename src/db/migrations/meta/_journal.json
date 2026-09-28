@@ -43,6 +43,13 @@
       "when": 1790357948532,
       "tag": "0005_panoramic_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790610397270,
+      "tag": "0006_condemned_husk",
+      "breakpoints": true
     }
   ]
 }

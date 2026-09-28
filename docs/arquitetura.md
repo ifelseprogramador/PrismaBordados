@@ -15,10 +15,15 @@ adicionados em `src/modules/` seguindo o contrato documentado em
 ```
 src/
 ├── app/
-│   ├── (auth)/login/       # login (Supabase Auth)
+│   ├── (auth)/
+│   │   ├── login/                    # login (Supabase Auth)
+│   │   ├── esqueci-senha/            # autoatendimento (requestPasswordReset)
+│   │   ├── redefinir-senha/          # processa o token do e-mail de recuperação
+│   │   └── trocar-senha-obrigatoria/ # gate de troca de senha (ver core/profile/)
 │   ├── (app)/              # área autenticada da organização
 │   │   ├── layout.tsx      # shell: sidebar, header, live-support, notificações
 │   │   ├── page.tsx        # dashboard: KPIs reais de pedidos/clientes
+│   │   ├── perfil/         # módulo Perfil (nome, tema, senha, branding)
 │   │   ├── clientes/       # rotas do módulo clientes
 │   │   ├── catalogo-bordado/  # rotas do módulo catalogo-bordado
 │   │   ├── pedidos/        # rotas do módulo pedidos (lista, novo, [id], imprimir)
@@ -31,7 +36,7 @@ src/
 │   ├── (admin)/admin/      # painel do dono da plataforma
 │   └── api/                # health check, cron de backup
 ├── core/                   # fundação — nunca conhece um módulo específico
-│   ├── auth.ts             # getSession, getActiveOrg, withOrg
+│   ├── auth.ts             # getSession, getActiveOrg, withOrg, mustChangePassword
 │   ├── admin-auth.ts       # requireAdmin
 │   ├── db.ts               # conexão + runWithUserContext/runWithSystemContext
 │   ├── registry.ts         # ModuleDefinition, registerModule, getEnabledModules
@@ -46,6 +51,7 @@ src/
 │   ├── csv.ts / csv-import.ts
 │   ├── backup.ts           # backup/restore por organização (registerBackupTable)
 │   ├── admin/              # queries/actions/components da área /admin
+│   ├── profile/            # perfil pessoal (nome, senha) + branding da org (cor, logo)
 │   ├── live-support/       # co-browsing (rrweb + Realtime Broadcast)
 │   └── notifications/      # avisos da plataforma para as organizações
 ├── db/
@@ -173,6 +179,29 @@ return withDb((tx) =>
 `core/admin-auth.ts#requireAdmin()` é o equivalente para `/admin` —
 mesmo padrão (`withDb`), mas sem filtro de organização (o admin enxerga
 tudo via a policy `is_current_user_platform_admin()`).
+
+## Troca de senha obrigatória e Perfil (`core/profile/`)
+
+`must_change_password` (`app_metadata` do usuário Supabase, só gravável
+via Admin API) é setado quando o dono da plataforma cria uma organização
+com senha inicial (`core/admin/actions.ts#createOrganization`) ou reseta
+a senha de alguém (`#resetMemberPassword`). `app/(app)/layout.tsx` e
+`app/(admin)/admin/layout.tsx` checam essa flag via
+`core/auth.ts#mustChangePassword(user)` e redirecionam para
+`/trocar-senha-obrigatoria` antes de qualquer outra coisa. A troca de
+senha (`core/profile/actions.ts#setNewPassword`) zera a flag pelo Admin
+API depois de `supabase.auth.updateUser({ password })` — mesmo mecanismo
+usado por `(auth)/redefinir-senha/` (autoatendimento via e-mail, ver
+docs/decisoes.md), mas acessível estando logado, sem precisar do link do
+e-mail.
+
+`app/(app)/perfil/` reúne: nome de exibição e senha (`user_metadata`,
+qualquer pessoa edita a própria), tema claro/escuro (`next-themes`, só
+no navegador, sem persistir no backend) e, só para `role === "owner"`,
+a cor primária e o logo da organização (`organizations.primaryColor`/
+`logoUrl`, aplicados no shell do app para toda a equipe). O logo é
+enviado para o bucket público `branding` do Supabase Storage, criado de
+forma idempotente pela própria action.
 
 ## Painel do dono da plataforma (`/admin`)
 

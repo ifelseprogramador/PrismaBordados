@@ -110,6 +110,9 @@ export async function createOrganization(
         email: ownerEmail,
         password: ownerPassword,
         email_confirm: true,
+        // Senha provisória digitada pelo admin — a pessoa é obrigada a
+        // trocá-la no primeiro login (ver core/auth.ts#mustChangePassword).
+        app_metadata: { must_change_password: true },
       });
       if (error) throw error;
       ownerId = data.user.id;
@@ -443,11 +446,11 @@ export interface ResetMemberPasswordResult extends ActionResult {
  * aleatória e grava direto via Admin API do Supabase (nunca precisa da
  * senha antiga) — devolvida UMA vez na resposta da action, pra quem
  * chamou mostrar na tela e repassar pro usuário (WhatsApp, telefone,
- * etc; este sistema não manda e-mail próprio nenhum). O usuário troca
- * por uma senha definitiva da forma que quiser: fazendo login com a
- * provisória e depois usando "Esqueci minha senha" (fluxo de
- * autoatendimento, `(auth)/actions.ts#requestPasswordReset`) — não há
- * uma tela separada de "trocar senha estando logado" nesta entrega.
+ * etc; este sistema não manda e-mail próprio nenhum). Marca
+ * `must_change_password` — a pessoa é obrigada a trocá-la no próximo
+ * login (`core/profile/`, gate em `app/(app)/layout.tsx`), antes só
+ * dependia dela lembrar de usar "Esqueci minha senha"
+ * (`(auth)/actions.ts#requestPasswordReset`) por conta própria.
  */
 export async function resetMemberPassword(
   organizationId: string,
@@ -459,6 +462,10 @@ export async function resetMemberPassword(
   const supabaseAdmin = createSupabaseAdminClient();
   const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
     password: temporaryPassword,
+    // A pessoa é obrigada a trocar a provisória antes de acessar o
+    // resto do sistema (ver core/auth.ts#mustChangePassword) — não
+    // depende mais só dela lembrar de usar "Esqueci minha senha".
+    app_metadata: { must_change_password: true },
   });
 
   if (error) {

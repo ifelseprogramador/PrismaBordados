@@ -21,17 +21,21 @@ import { resetMemberPassword } from "../actions";
  * minha senha" sozinha. Gera uma senha PROVISÓRIA aleatória
  * (`actions.ts#resetMemberPassword`), mostrada uma única vez nesta
  * tela — não fica salva em lugar nenhum além do que o admin copiar/
- * anotar. A pessoa entra com ela e troca por uma definitiva depois
- * (fluxo de autoatendimento em `/esqueci-senha`, mesmo e-mail).
+ * anotar. A pessoa é obrigada a trocá-la por uma definitiva ao entrar
+ * (`core/auth.ts#mustChangePassword`, gate em `app/(app)/layout.tsx`) —
+ * não depende mais dela lembrar de usar "Esqueci minha senha" por conta
+ * própria.
  */
 export function ResetMemberPasswordButton({
   organizationId,
   userId,
-  email,
+  label,
 }: {
   organizationId: string;
   userId: string;
-  email: string;
+  /** Nome de exibição, ou e-mail/UID como fallback (ver
+   * `core/user-lookup.ts`) — identifica a pessoa nos textos do dialog. */
+  label: string;
 }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -77,10 +81,9 @@ export function ResetMemberPasswordButton({
             <DialogHeader>
               <DialogTitle>Senha provisória gerada</DialogTitle>
               <DialogDescription>
-                Repasse esta senha para {email} por um canal seguro (WhatsApp, telefone) — ela só
-                aparece agora, não fica salva em lugar nenhum. Peça para a pessoa entrar com ela e
-                trocar assim que possível, usando &quot;Esqueci minha senha&quot; na tela de login
-                (mesmo e-mail).
+                Repasse esta senha para {label} por um canal seguro (WhatsApp, telefone) — ela só
+                aparece agora, não fica salva em lugar nenhum. Ao entrar com ela, a pessoa será
+                obrigada a definir uma senha nova antes de acessar o sistema.
               </DialogDescription>
             </DialogHeader>
             <div className="flex items-center gap-2">
@@ -104,10 +107,11 @@ export function ResetMemberPasswordButton({
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Resetar senha de {email}</DialogTitle>
+              <DialogTitle>Resetar senha de {label}</DialogTitle>
               <DialogDescription>
                 Gera uma senha provisória aleatória e substitui a atual imediatamente — a pessoa não
-                vai mais conseguir entrar com a senha antiga. Essa ação não pode ser desfeita.
+                vai mais conseguir entrar com a senha antiga. Os dados dela na organização não são
+                afetados. Essa ação não pode ser desfeita.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
