@@ -1271,11 +1271,13 @@ Prisma:
   commit desse tipo aparecendo no histórico do Prisma sem ter sido feito
   manualmente é esperado, não um evento estranho — conferir
   `git log --oneline` e rodar `npm run check` antes de dar push.
-- O `mecano-erp` fica de fora desta automação por enquanto — pedido
-  explícito do dono da plataforma de restringir o escopo inicial a
-  BaseERP↔Prisma; a arquitetura de RLS diferente do mecano-erp
-  (`bypassrls`/`db` direto) tornaria uma cópia direta de arquivos
-  incorreta, não só uma questão de prioridade.
+- **Atualização 2026-09-29**: o `mecano-erp` migrou pra RLS ativa (não
+  usa mais `bypassrls`) e entrou nesta mesma automação — a restrição
+  acima já não vale. `scripts/verticals.txt` no BaseERP lista os dois
+  agora, então um commit de fundação no BaseERP propaga pro Prisma E
+  pro mecano-erp (cada um com seu próprio commit automático). Detalhe
+  completo em `base-erp/docs/decisoes.md` e `mecano-erp/docs/decisoes.md`,
+  mesma data.
 
 **Dois bugs reais encontrados testando o mecanismo contra este próprio
 repositório** (detalhe completo em `base-erp/docs/decisoes.md`, mesma
