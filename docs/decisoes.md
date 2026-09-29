@@ -1239,3 +1239,55 @@ de cada um desses três Route Handlers, com comentário explicando o porquê.
 realizados via efeito colateral (backup, módulos, etc.) deve importar
 `core/load-modules` explicitamente — nunca assumir que o `layout.tsx`
 já rodou naquele contexto.
+
+## 2026-09-28 (cont.) — `core/brand.ts` + automação real de sincronização com o BaseERP
+
+Entrada espelhada de `base-erp/docs/decisoes.md` (mesma data, "`core/brand.ts`:
+extração do que diferencia cada vertical + automação real de sincronização") —
+ver lá o detalhe completo do mecanismo. Registro aqui do que muda do lado do
+Prisma:
+
+- Criado `src/core/brand.ts` (`BRAND: BrandConfig` — `name: "Prisma"`,
+  `tagline`, `primaryHex: "#195cc7"`, `iconPaths` = path data do ícone
+  "gem" do lucide, `privacyPolicyHref: "/privacidade"`) + reaproveitado
+  `components/brand-icon.tsx` do BaseERP (componente genérico, sem
+  nenhuma diferença entre os dois projetos). `core/brand.ts` é o único
+  arquivo de `core/` que a sincronização automática NUNCA toca — é
+  exatamente o que diferencia este projeto do BaseERP e de qualquer
+  vertical futuro.
+- `app/(app)/layout.tsx`, `app/(auth)/login/page.tsx`, `app/icon.tsx`,
+  `app/apple-icon.tsx`, `app/opengraph-image.tsx` e `app/layout.tsx`
+  (metadata raiz) passaram a importar `BRAND`/`BrandIcon` em vez de
+  texto/ícone/cor hardcoded (`Gem` do lucide, `"Prisma"` literal) — a
+  partir de agora esses arquivos são **byte-idênticos** ao BaseERP, o
+  que é o pré-requisito para o hook de sincronização automática poder
+  copiá-los sem gerar conflito.
+- A partir daqui, qualquer commit no BaseERP que toque `core/`,
+  `components/` de fundação, `db/schema/tenancy.ts` ou os arquivos de
+  `app/` listados acima dispara `scripts/post-commit` (instalado via
+  `base-erp/scripts/install-sync-hook.sh`) e gera um commit AUTOMÁTICO
+  aqui no Prisma (`sync(base-erp): <assunto do commit original>`) — sem
+  push automático, ver decisão espelhada no BaseERP para o porquê. Um
+  commit desse tipo aparecendo no histórico do Prisma sem ter sido feito
+  manualmente é esperado, não um evento estranho — conferir
+  `git log --oneline` e rodar `npm run check` antes de dar push.
+- O `mecano-erp` fica de fora desta automação por enquanto — pedido
+  explícito do dono da plataforma de restringir o escopo inicial a
+  BaseERP↔Prisma; a arquitetura de RLS diferente do mecano-erp
+  (`bypassrls`/`db` direto) tornaria uma cópia direta de arquivos
+  incorreta, não só uma questão de prioridade.
+
+**Dois bugs reais encontrados testando o mecanismo contra este próprio
+repositório** (detalhe completo em `base-erp/docs/decisoes.md`, mesma
+entrada): a primeira versão sincronizava diretórios inteiros
+(`src/core`, `src/app/(admin)`, `src/app/(auth)`) com `rsync --delete`,
+o que apagaria `core/privacy/`, `core/business-type-presets.ts` e
+`core/audit-log.ts` (só existem aqui) e sobrescreveria
+`core/admin/actions.ts`, `core/registry.ts`,
+`components/layout/mobile-nav.tsx` (nome "Prisma" virando "BaseERP") e
+`components/layout/sidebar-nav.tsx` (item de menu de LGPD some) — tudo
+detectado num teste real contra este repositório antes de qualquer
+commit acontecer, e revertido manualmente. `FOUNDATION_PATHS` virou
+`base-erp/scripts/foundation-paths.sh`, file-level por padrão; só um
+diretório inteiro entra na lista depois de confirmado idêntico via
+`diff -rq`.
