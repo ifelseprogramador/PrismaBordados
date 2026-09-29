@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StaleServiceWorkerCleanup } from "@/components/stale-service-worker-cleanup";
 import { ThemeProvider } from "@/components/theme-provider";
+import { BRAND } from "@/core/brand";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,28 +17,23 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const TITLE = "Prisma";
-// Mesmo slogan genérico da tela de login (`(auth)/login/page.tsx`) — de
-// propósito sem mencionar "bordado": o nome do sistema não deve amarrar
-// a apresentação a um vertical de negócio específico (pedido do
-// usuário), e essa descrição é o que aparece ao compartilhar um link
-// (WhatsApp, Slack, etc. — via `openGraph`/`twitter` abaixo e
-// `opengraph-image.tsx`).
-const DESCRIPTION = "Gestão completa para o seu negócio.";
-
+// Nome/slogan vêm de `core/brand.ts` — é o que aparece ao compartilhar
+// um link (WhatsApp, Slack, etc., via `openGraph`/`twitter` abaixo e
+// `opengraph-image.tsx`), então esta declaração de metadata fica
+// idêntica entre o BaseERP e cada vertical.
 export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
+  title: BRAND.name,
+  description: BRAND.tagline,
   openGraph: {
-    title: TITLE,
-    description: DESCRIPTION,
+    title: BRAND.name,
+    description: BRAND.tagline,
     type: "website",
     locale: "pt_BR",
   },
   twitter: {
     card: "summary_large_image",
-    title: TITLE,
-    description: DESCRIPTION,
+    title: BRAND.name,
+    description: BRAND.tagline,
   },
 };
 

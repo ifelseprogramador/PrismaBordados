@@ -36,30 +36,27 @@ export const organizations = pgTable("organizations", {
   address: text("address"),
 
   /**
-   * Preset informativo de ramo de negócio (ex.: "bordados"), usado SÓ
-   * como sugestão de quais módulos habilitar por padrão ao criar uma
-   * organização nova (tela em `/admin`, ver
-   * `core/business-type-presets.ts`). NÃO é lido por nenhum módulo de
-   * negócio: `businessType` nunca deve virar uma condicional dentro de
-   * `modules/*` (ex. `if (org.businessType === "bordados")`) — mesmo o
-   * Prisma tendo hoje um único vertical de fato. Se um módulo precisar de
-   * comportamento condicional por ramo, isso deve ser modelado como
-   * configuração própria do módulo (uma tabela ou um campo dele), não
-   * lendo este campo. Texto livre (não enum) de propósito: um vertical
-   * novo não deve precisar de uma migration aqui só para cadastrar um
-   * novo preset — só uma chamada a `registerBusinessTypePreset(...)`.
+   * Preset informativo de ramo de negócio (ex.: "bordados", "oficina"),
+   * usado SÓ como sugestão de quais módulos habilitar por padrão ao criar
+   * uma organização nova (tela em `/admin`). NÃO é lido por nenhum módulo
+   * de negócio — este projeto (BaseERP) propositalmente não tem nenhum
+   * módulo ainda, e a regra vale também para os verticais que nascerem
+   * daqui: `businessType` nunca deve virar uma condicional dentro de
+   * `modules/*` (ex. `if (org.businessType === "bordados")`). Se um
+   * módulo precisar de comportamento condicional por ramo, isso deve ser
+   * modelado como configuração própria do módulo (uma tabela ou um campo
+   * dele), não lendo este campo. Texto livre (não enum) de propósito: um
+   * vertical não deve precisar de uma migration no BaseERP só para
+   * cadastrar um novo preset.
    */
   businessType: text("business_type"),
 
   // Branding da organização (não do dono da plataforma) — aplicado no
   // shell do app para toda a equipe daquela organização. Só quem tem
   // `role === "owner"` edita (checado em `core/profile/actions.ts`, não
-  // em RLS separada). Cores em hex (ex.: "#2563eb"): `primaryColor`
-  // sobrescreve `--primary` (botões/destaques), `sidebarColor`
-  // sobrescreve `--sidebar` (fundo do menu lateral) — dois controles
-  // separados porque são tokens de tema independentes em `globals.css`,
-  // não um derivado do outro. `logoUrl` aponta para um objeto no bucket
-  // público `branding` do Supabase Storage.
+  // em RLS separada). `primaryColor` é hex (ex.: "#2563eb"), sobrescreve
+  // `--primary` em `globals.css`; `logoUrl` aponta para um objeto no
+  // bucket público `branding` do Supabase Storage.
   primaryColor: text("primary_color"),
   sidebarColor: text("sidebar_color"),
   logoUrl: text("logo_url"),

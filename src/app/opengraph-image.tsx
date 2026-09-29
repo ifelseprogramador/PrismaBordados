@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { BRAND } from "@/core/brand";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -7,7 +8,8 @@ export const contentType = "image/png";
  * Imagem mostrada ao compartilhar um link do sistema (WhatsApp,
  * Slack, Twitter/X, etc. — todos leem a meta tag `og:image`, que o
  * Next.js gera sozinho a partir deste arquivo). Mesma marca da tela de
- * login: ícone + nome + slogan, sobre o fundo escuro do tema.
+ * login: ícone + nome + slogan (`core/brand.ts`), sobre o fundo escuro
+ * do tema.
  */
 export default function OpengraphImage() {
   return new ImageResponse(
@@ -27,7 +29,7 @@ export default function OpengraphImage() {
         style={{
           width: 160,
           height: 160,
-          background: "#195cc7",
+          background: BRAND.primaryHex,
           borderRadius: 36,
           display: "flex",
           alignItems: "center",
@@ -44,14 +46,14 @@ export default function OpengraphImage() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <path d="M10.5 3 8 9l4 13 4-13-2.5-6" />
-          <path d="M17 3a2 2 0 0 1 1.6.8l3 4a2 2 0 0 1 .013 2.382l-7.99 10.986a2 2 0 0 1-3.247 0l-7.99-10.986A2 2 0 0 1 2.4 7.8l2.998-3.997A2 2 0 0 1 7 3z" />
-          <path d="M2 9h20" />
+          {BRAND.iconPaths.map((d) => (
+            <path key={d} d={d} />
+          ))}
         </svg>
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-        <div style={{ fontSize: 72, fontWeight: 700, color: "white" }}>Prisma</div>
-        <div style={{ fontSize: 30, color: "#9ca3af" }}>Gestão completa para o seu negócio</div>
+        <div style={{ fontSize: 72, fontWeight: 700, color: "white" }}>{BRAND.name}</div>
+        <div style={{ fontSize: 30, color: "#9ca3af" }}>{BRAND.tagline}</div>
       </div>
     </div>,
     { ...size },

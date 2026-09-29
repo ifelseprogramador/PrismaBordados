@@ -50,9 +50,7 @@ export async function getSession() {
  * API/service role, nunca pelo próprio usuário) por
  * `core/admin/actions.ts#createOrganization` (usuário novo, senha
  * inicial) e `#resetMemberPassword` (reset feito pelo dono da
- * plataforma — antes desta entrega, `resetMemberPassword` já existia
- * aqui mas não setava essa flag, contava só com o autoatendimento; ver
- * docs/decisoes.md). Zerado por `core/profile/actions.ts#setNewPassword`
+ * plataforma). Zerado por `core/profile/actions.ts#setNewPassword`
  * depois que a pessoa define uma senha própria. Ver
  * `app/(auth)/trocar-senha-obrigatoria/` e o gate nos layouts de
  * `(app)`/`(admin)`.

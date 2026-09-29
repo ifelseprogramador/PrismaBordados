@@ -85,12 +85,11 @@ interface BackupTableDefinition {
 
 /**
  * Registro de tabelas de MÓDULO de negócio que entram no backup/restore
- * de uma organização — cada módulo (`clientes`, `catalogo-bordado`,
- * `pedidos`) chama `registerBackupTable(...)` a partir do próprio
- * `module.ts` para entrar automaticamente no backup/restore por
- * organização. `pedido_itens` é a exceção: sem `organizationId` próprio
- * (RLS via join, ver docs/decisoes.md), fica fora do backup por
- * enquanto — ver comentário em `modules/pedidos/module.ts`.
+ * de uma organização. BaseERP não tem nenhum módulo ainda (ver
+ * src/modules/README.md) — este projeto só define o backup de fundação
+ * (nenhuma tabela de negócio). Um vertical que crie `modules/<modulo>/`
+ * chama `registerBackupTable(...)` a partir do próprio `module.ts` para
+ * entrar automaticamente no backup/restore por organização.
  */
 const BACKUP_TABLES: BackupTableDefinition[] = [];
 
