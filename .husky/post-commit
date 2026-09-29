@@ -1,0 +1,9 @@
+# Instalado por /home/eduardo/code/base-erp/scripts/install-sync-hook.sh — não editar
+# direto, edite scripts/sync-foundation-commit-reverse.sh (no BaseERP)
+# e rode o instalador de novo lá.
+"/home/eduardo/code/base-erp/scripts/sync-foundation-commit-reverse.sh" || {
+  echo "[post-commit] sync-foundation-commit-reverse.sh falhou — o commit" >&2
+  echo "[post-commit] aqui foi feito normalmente, mas a propagação de volta" >&2
+  echo "[post-commit] pro BaseERP não rodou. Rode manualmente a partir daqui:" >&2
+  echo "[post-commit] /home/eduardo/code/base-erp/scripts/sync-foundation-commit-reverse.sh" >&2
+}
