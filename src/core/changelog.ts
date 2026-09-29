@@ -24,6 +24,60 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.0",
+    date: "2026-09-28",
+    changes: [
+      {
+        type: "novo",
+        text: "Em Perfil, a cor de destaque (botões) e a cor do menu lateral agora são dois controles separados — antes só dava pra mudar uma cor só.",
+      },
+      {
+        type: "novo",
+        text: "Botão para remover o logo enviado e voltar ao ícone padrão do sistema.",
+      },
+      {
+        type: "novo",
+        text: "Botão para mostrar/esconder a senha digitada, tanto no login quanto ao trocar a senha.",
+      },
+      {
+        type: "novo",
+        text: "O administrador da plataforma agora pode renomear uma organização depois de criada.",
+      },
+      {
+        type: "novo",
+        text: "Pedidos agora podem ser apagados. Se o pedido já tiver nota fiscal emitida, o sistema avisa antes de confirmar.",
+      },
+      {
+        type: "novo",
+        text: "O ícone na aba do navegador e a imagem que aparece ao compartilhar o link (ex.: no WhatsApp) agora mostram a marca do sistema.",
+      },
+      {
+        type: "correcao",
+        text: "Corrigido um erro que podia travar a tela ao abrir o menu de perfil.",
+      },
+      {
+        type: "correcao",
+        text: "A cor de destaque escolhida em Perfil agora aparece de verdade no seletor — antes o seletor sempre voltava pro azul, mesmo com outra cor salva.",
+      },
+      {
+        type: "correcao",
+        text: "Corrigido: ao errar a senha no login, os campos de e-mail e senha eram apagados, obrigando a digitar tudo de novo.",
+      },
+      {
+        type: "correcao",
+        text: "Corrigido: a logo aparecia esticada/deformada na tela de perfil.",
+      },
+      {
+        type: "correcao",
+        text: "Ao apagar definitivamente uma organização, a conta de acesso de cada pessoa dela também é removida agora — antes só os dados ficavam apagados.",
+      },
+      {
+        type: "correcao",
+        text: "Corrigido: em alguns casos, o backup gerado não conseguia ser restaurado por causa de um erro de formato de data.",
+      },
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-09-28",
     changes: [

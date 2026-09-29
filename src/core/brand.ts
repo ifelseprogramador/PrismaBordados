@@ -5,8 +5,10 @@
  * compartilhamento, tela de login). Todo o resto desses arquivos é
  * idêntico entre os projetos de propósito — é o que permite sincronizar
  * `core/`/`components/`/`app/(auth)`/`app/(app)/layout.tsx` automaticamente
- * (`scripts/sync-to-children.sh` + hook `post-commit`) sem apagar a
- * identidade visual de ninguém.
+ * (`base-erp/scripts/sync-to-vertical.sh` + hook `post-commit`, ver
+ * `base-erp/scripts/foundation-paths.sh`) sem apagar a identidade visual
+ * de ninguém — este arquivo está em `FOUNDATION_EXCLUDE_PATHS`, nunca é
+ * sobrescrito pela sincronização automática.
  *
  * Ao nascer um vertical novo a partir deste template: o ÚNICO arquivo
  * que precisa mudar aqui é este. Nunca edite `iconPaths` copiando de
@@ -36,15 +38,14 @@ export interface BrandConfig {
 }
 
 export const BRAND: BrandConfig = {
-  name: "BaseERP",
-  tagline: "Base multi-tenant para ERPs modulares.",
+  name: "Prisma",
+  tagline: "Gestão completa para o seu negócio.",
   primaryHex: "#195cc7",
-  // lucide-react "building-2" (alias de "building-complex")
+  // lucide-react "gem"
   iconPaths: [
-    "M10 12h4",
-    "M10 8h4",
-    "M14 21v-3a2 2 0 0 0-4 0v3",
-    "M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2",
-    "M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16",
+    "M10.5 3 8 9l4 13 4-13-2.5-6",
+    "M17 3a2 2 0 0 1 1.6.8l3 4a2 2 0 0 1 .013 2.382l-7.99 10.986a2 2 0 0 1-3.247 0l-7.99-10.986A2 2 0 0 1 2.4 7.8l2.998-3.997A2 2 0 0 1 7 3z",
+    "M2 9h20",
   ],
+  privacyPolicyHref: "/privacidade",
 };
