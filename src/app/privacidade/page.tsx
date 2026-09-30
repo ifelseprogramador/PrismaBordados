@@ -43,9 +43,17 @@ export default function PrivacidadePage() {
         <CardContent className="text-sm leading-relaxed">
           <p>
             Cada empresa que usa o Prisma cadastra e gerencia os dados dos próprios clientes (nome,
-            CPF/CNPJ, telefone, endereço) para produzir pedidos e emitir nota fiscal — o Prisma é a
-            ferramenta que ela usa para isso, funcionando como operador técnico. Os dados ficam
-            armazenados em banco de dados hospedado no Brasil (Supabase, região São Paulo).
+            CPF/CNPJ, razão social, inscrições estadual e municipal, telefone, e-mail e endereço)
+            para produzir pedidos e emitir nota fiscal — o Prisma é a ferramenta que ela usa para
+            isso, funcionando como operador técnico. Os dados ficam armazenados em banco de dados
+            hospedado no Brasil (Supabase, região São Paulo).
+          </p>
+          <p className="mt-3">
+            Ao emitir uma nota fiscal, os dados necessários do cliente (documento, nome e endereço)
+            são enviados ao provedor de emissão contratado pela empresa, que atua como operador para
+            essa finalidade. Notas emitidas seguem o prazo legal de guarda fiscal, mesmo após um
+            pedido de eliminação do cadastro (LGPD, Art. 16, I). Cópias de segurança (backup) podem
+            conter o dado até expirarem.
           </p>
         </CardContent>
       </Card>

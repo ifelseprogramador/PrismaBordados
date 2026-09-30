@@ -131,6 +131,17 @@ vai processar CPF/CNPJ/endereço do titular.
 
 Em ordem sugerida de prioridade:
 
+0. **Criptografia real da chave de API do provedor fiscal** (hoje
+   `crypto-placeholder.ts`, reversível) — fazer ANTES de integrar um provedor
+   real (Art. 46, segurança). Junto: contrato de operador (Art. 39) com o
+   provedor e nova revisão do aviso de privacidade.
+   0.1. **Dados fiscais do cliente** (2026-09-30): `clientes` ganhou razão
+   social, IE, IM e `cliente_enderecos`. Anonimização zera os campos e apaga
+   os endereços; nota emitida mantém guarda legal (Art. 16, I); backups
+   (`cliente_enderecos` está no registro de backup) retêm o dado até expirar.
+   Criptografar CPF/CNPJ/endereço coluna a coluna foi avaliado e adiado (não
+   exigido pela LGPD; quebraria a busca por documento).
+
 1. **Cron de retenção automática**, lendo `retentionYears` de
    `organization_privacy_settings` por organização (item 7 acima) — hoje
    o campo é só declarativo/informativo.
