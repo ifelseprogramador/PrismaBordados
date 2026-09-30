@@ -6,7 +6,7 @@
  * `components`), porque o Drizzle exige o objeto `pgTable` real para
  * declarar uma foreign key.
  */
-export type { Cliente } from "./schema.types";
+export type { Cliente, ClienteEndereco, ClienteComEndereco } from "./schema.types";
 export { CLIENTE_ANONIMIZADO_NOME } from "./schema";
 export { clienteSchema, type ClienteInput } from "./validation";
 export { listClientes, getClienteById, listClientesForSelect } from "./queries";
@@ -15,5 +15,6 @@ export {
   updateCliente,
   deleteCliente,
   anonymizeCliente,
+  buscarCep,
   type InsertResult,
 } from "./actions";

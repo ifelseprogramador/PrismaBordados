@@ -6,7 +6,8 @@ import { withOrg } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
 import { fiscalCredentials, fiscalNotas } from "./schema";
 import { resolveFiscalProvider } from "./resolve-provider";
-import type { PedidoItemLike } from "./domain";
+import { validarClienteParaNota, type PedidoItemLike } from "./domain";
+import type { FiscalClientePayload } from "./provider";
 import { runCancelamento, runEmissaoParaPedido } from "./run-emissao";
 import { encryptApiKeyPlaceholder } from "./crypto-placeholder";
 import { parseFiscalCredentialsFormData } from "./validation";
@@ -14,7 +15,7 @@ import { parseFiscalCredentialsFormData } from "./validation";
 export interface EmitirNotaFiscalInput {
   pedidoId: string;
   pedidoNumber: number;
-  cliente: { nome: string; documento?: string; endereco?: string; email?: string };
+  cliente: FiscalClientePayload;
   itens: PedidoItemLike[];
 }
 
@@ -37,6 +38,15 @@ export async function emitirNotaFiscal(input: EmitirNotaFiscalInput): Promise<Ac
 
   if (input.itens.length === 0) {
     return { ok: false, message: "Pedido sem itens para emitir nota fiscal." };
+  }
+
+  // Falta de dado fiscal do cliente vira mensagem clara, não erro do provedor.
+  const faltando = validarClienteParaNota(input.cliente, input.itens);
+  if (faltando.length > 0) {
+    return {
+      ok: false,
+      message: `Complete o cadastro do cliente para emitir a nota: ${faltando.join("; ")}.`,
+    };
   }
 
   const [credentials] = await withDb((tx) =>

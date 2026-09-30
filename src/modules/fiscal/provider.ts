@@ -25,11 +25,33 @@ export interface FiscalItemPayload {
   tipoOperacao: FiscalOperacaoTipo;
 }
 
+export interface FiscalEnderecoPayload {
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  /** Código IBGE do município (7 dígitos). */
+  codigoIbge: string;
+  /** Código do país (1058 = Brasil). */
+  codigoPais: string;
+}
+
 export interface FiscalClientePayload {
   nome: string;
   documento?: string;
+  /** Endereço em texto livre (cadastros antigos) — preferir `enderecoEstruturado`. */
   endereco?: string;
   email?: string;
+  tipo?: "pf" | "pj";
+  razaoSocial?: string;
+  nomeFantasia?: string;
+  indicadorIe?: "contribuinte" | "isento" | "nao_contribuinte";
+  ie?: string;
+  im?: string;
+  enderecoEstruturado?: Partial<FiscalEnderecoPayload>;
 }
 
 export interface FiscalEmissaoPayload {

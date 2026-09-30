@@ -24,6 +24,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.0",
+    date: "2026-09-30",
+    changes: [
+      {
+        type: "novo",
+        text: "Cadastro de cliente com os dados que a nota fiscal exige: tipo (pessoa física ou empresa), razão social, inscrição estadual e municipal e endereço completo.",
+      },
+      {
+        type: "novo",
+        text: "Ao digitar o CEP, rua, bairro, cidade, UF e código IBGE são preenchidos sozinhos.",
+      },
+      {
+        type: "melhoria",
+        text: "Se faltar algum dado do cliente na hora de emitir a nota, o sistema avisa exatamente o que completar.",
+      },
+      {
+        type: "correcao",
+        text: "Ao errar um campo do cliente, o formulário só marca o campo errado e mantém tudo o que já estava preenchido.",
+      },
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-09-28",
     changes: [

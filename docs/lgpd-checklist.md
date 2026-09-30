@@ -1,7 +1,7 @@
 # Checklist de LGPD
 
 Este documento existe porque o Prisma trata dado pessoal de terceiros
-(clientes da empresa que usa o sistema — CPF/CNPJ, telefone, endereço,
+(clientes da empresa que usa o sistema — CPF/CNPJ, razão social, IE/IM, telefone, endereço estruturado (`cliente_enderecos`),
 e-mail, em `modules/clientes`) e a empresa que opera o Prisma é
 **controladora** desses dados perante a LGPD (Lei 13.709/2018), mesmo que
 o Prisma seja só o software. Isso vale mesmo para uma única organização

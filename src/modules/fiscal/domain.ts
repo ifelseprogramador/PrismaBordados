@@ -1,5 +1,5 @@
 import type { Cents } from "@/core/money";
-import type { FiscalItemPayload, FiscalOperacaoTipo } from "./provider";
+import type { FiscalClientePayload, FiscalItemPayload, FiscalOperacaoTipo } from "./provider";
 
 export interface PedidoItemLike {
   catalogoItemId?: string | null;
@@ -63,4 +63,45 @@ export function calculateItensTotal(itens: PedidoItemLike[]): Cents {
     (total, item) => total + Math.round(item.unitPriceCents * Number(item.quantity)),
     0,
   );
+}
+
+/**
+ * Dados do cliente (tomador/destinatário) que o tipo de nota exige.
+ * Devolve a lista de pendências em português (vazia = pode emitir).
+ * NF-e: documento, endereço completo com IBGE, IE se contribuinte e razão
+ * social para PJ. NFS-e: município (UF + IBGE) e CEP do tomador.
+ */
+export function validarClienteParaNota(
+  cliente: FiscalClientePayload,
+  itens: Pick<PedidoItemLike, "catalogoItemId">[],
+): string[] {
+  const tipos = new Set(itens.map(decideOperacaoTipo));
+  const e = cliente.enderecoEstruturado ?? {};
+  const faltando: string[] = [];
+
+  if (tipos.has("venda")) {
+    if (!cliente.documento) faltando.push("CPF/CNPJ (NF-e)");
+    if (cliente.tipo === "pj" && !cliente.razaoSocial) faltando.push("razão social (NF-e)");
+    if (cliente.indicadorIe === "contribuinte" && !cliente.ie) faltando.push("Inscrição Estadual");
+    const campos: [keyof typeof e, string][] = [
+      ["cep", "CEP"],
+      ["logradouro", "logradouro"],
+      ["numero", "número"],
+      ["bairro", "bairro"],
+      ["municipio", "cidade"],
+      ["uf", "UF"],
+      ["codigoIbge", "código IBGE"],
+    ];
+    for (const [k, label] of campos) if (!e[k]) faltando.push(`${label} (NF-e)`);
+  } else if (tipos.has("servico")) {
+    for (const [k, label] of [
+      ["cep", "CEP"],
+      ["uf", "UF"],
+      ["codigoIbge", "código IBGE"],
+    ] as const) {
+      if (!e[k]) faltando.push(`${label} (NFS-e)`);
+    }
+  }
+  // Pedido misto (NF-e + NFS-e): as regras de NF-e já cobrem as de NFS-e.
+  return faltando;
 }

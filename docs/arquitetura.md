@@ -77,7 +77,8 @@ src/
 
 - **`modules/clientes/`**: o mais simples dos três — só
   `schema.ts`/`validation.ts`/`queries.ts`/`actions.ts` em cima de uma
-  única tabela (`clientes`). Serve de referência mínima do contrato.
+  duas tabelas (`clientes` + `cliente_enderecos`, dados fiscais para NF-e/NFS-e;
+  ver decisoes.md 2026-09-30). Serve de referência mínima do contrato.
 - **`modules/catalogo-bordado/`**: mesma estrutura, com duas colunas
   `text[]` (`tamanhosAceitos`/`coresAceitas`) — mostra que o contrato não
   se limita a colunas escalares.

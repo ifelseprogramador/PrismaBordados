@@ -5,11 +5,18 @@ import { and, eq, isNull } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import { recordLgpdAction } from "@/core/audit-log";
 import type { ActionResult } from "@/core/action-result";
-import { clientes, CLIENTE_ANONIMIZADO_NOME } from "./schema";
-import { parseClienteFormData } from "./validation";
+import { lookupCep, type CepResult } from "@/core/cep";
+import { clientes, clienteEnderecos, CLIENTE_ANONIMIZADO_NOME } from "./schema";
+import { parseClienteFormData, splitClienteInput } from "./validation";
 
 export interface InsertResult extends ActionResult {
   id?: string;
+}
+
+/** Autocomplete de endereço por CEP (ViaCEP). Exige sessão; nunca lança. */
+export async function buscarCep(cep: string): Promise<CepResult | null> {
+  await withOrg();
+  return lookupCep(cep);
 }
 
 export async function createCliente(
@@ -23,15 +30,25 @@ export async function createCliente(
     log.warn("clientes.criar.validacao_falhou", {
       fields: Object.keys(parsed.error.flatten().fieldErrors),
     });
-    return { ok: false, errors: parsed.error.flatten().fieldErrors };
+    return {
+      ok: false,
+      errors: parsed.error.flatten().fieldErrors,
+    };
   }
 
-  const [cliente] = await withDb((tx) =>
-    tx
+  const { cliente: dados, endereco } = splitClienteInput(parsed.data);
+  const [cliente] = await withDb(async (tx) => {
+    const rows = await tx
       .insert(clientes)
-      .values({ ...parsed.data, organizationId })
-      .returning({ id: clientes.id }),
-  );
+      .values({ ...dados, organizationId })
+      .returning({ id: clientes.id });
+    if (endereco) {
+      await tx
+        .insert(clienteEnderecos)
+        .values({ ...endereco, organizationId, clienteId: rows[0].id, kind: "principal" });
+    }
+    return rows;
+  });
   log.info("clientes.criar.sucesso", { clienteId: cliente.id });
 
   revalidatePath("/clientes");
@@ -51,13 +68,17 @@ export async function updateCliente(
       clienteId,
       fields: Object.keys(parsed.error.flatten().fieldErrors),
     });
-    return { ok: false, errors: parsed.error.flatten().fieldErrors };
+    return {
+      ok: false,
+      errors: parsed.error.flatten().fieldErrors,
+    };
   }
 
-  const result = await withDb((tx) =>
-    tx
+  const { cliente: dados, endereco } = splitClienteInput(parsed.data);
+  const result = await withDb(async (tx) => {
+    const rows = await tx
       .update(clientes)
-      .set({ ...parsed.data, updatedAt: new Date() })
+      .set({ ...dados, updatedAt: new Date() })
       .where(
         and(
           eq(clientes.id, clienteId),
@@ -68,8 +89,27 @@ export async function updateCliente(
           isNull(clientes.anonymizedAt),
         ),
       )
-      .returning({ id: clientes.id }),
-  );
+      .returning({ id: clientes.id });
+    if (rows.length === 0) return rows;
+
+    const principal = and(
+      eq(clienteEnderecos.clienteId, clienteId),
+      eq(clienteEnderecos.kind, "principal"),
+    );
+    if (!endereco) {
+      await tx.delete(clienteEnderecos).where(principal);
+    } else {
+      await tx
+        .insert(clienteEnderecos)
+        .values({ ...endereco, organizationId, clienteId, kind: "principal" })
+        .onConflictDoUpdate({
+          target: clienteEnderecos.clienteId,
+          targetWhere: eq(clienteEnderecos.kind, "principal"),
+          set: { ...endereco, updatedAt: new Date() },
+        });
+    }
+    return rows;
+  });
 
   if (result.length === 0) {
     log.warn("clientes.atualizar.nao_encontrado", { clienteId });
@@ -123,6 +163,11 @@ export async function anonymizeCliente(clienteId: string): Promise<ActionResult>
       .update(clientes)
       .set({
         name: CLIENTE_ANONIMIZADO_NOME,
+        legalName: null,
+        tradeName: null,
+        ieIndicator: "nao_contribuinte",
+        ie: null,
+        im: null,
         document: null,
         phone: "",
         address: null,
@@ -134,6 +179,9 @@ export async function anonymizeCliente(clienteId: string): Promise<ActionResult>
       .returning({ id: clientes.id });
 
     if (rows.length === 0) return rows;
+
+    // Endereços estruturados também são dado pessoal: apagados, não anonimizados.
+    await tx.delete(clienteEnderecos).where(eq(clienteEnderecos.clienteId, clienteId));
 
     await recordLgpdAction(tx, {
       organizationId,

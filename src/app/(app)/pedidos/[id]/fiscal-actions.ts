@@ -8,6 +8,7 @@
  * (`emitirNotaFiscal`).
  */
 import { getPedidoById, listPedidoItens } from "@/modules/pedidos";
+import { getClienteById } from "@/modules/clientes";
 import { emitirNotaFiscal, type EmitirNotaFiscalInput } from "@/modules/fiscal";
 import type { ActionResult } from "@/core/action-result";
 
@@ -22,13 +23,39 @@ export async function emitirNotaFiscalDoPedido(pedidoId: string): Promise<Action
     return { ok: false, message: "Pedido sem itens para emitir nota fiscal." };
   }
 
+  const cliente = await getClienteById(pedido.customerId);
+  if (!cliente) {
+    return { ok: false, message: "Cliente do pedido não encontrado." };
+  }
+  const end = cliente.endereco;
+
   const input: EmitirNotaFiscalInput = {
     pedidoId: pedido.id,
     pedidoNumber: pedido.number,
     cliente: {
-      nome: pedido.customerName,
-      documento: pedido.customerDocument ?? undefined,
-      endereco: pedido.customerAddress ?? undefined,
+      nome: cliente.name,
+      documento: cliente.document ?? undefined,
+      endereco: cliente.address ?? undefined,
+      email: cliente.email ?? undefined,
+      tipo: cliente.type,
+      razaoSocial: cliente.legalName ?? undefined,
+      nomeFantasia: cliente.tradeName ?? undefined,
+      indicadorIe: cliente.ieIndicator,
+      ie: cliente.ie ?? undefined,
+      im: cliente.im ?? undefined,
+      enderecoEstruturado: end
+        ? {
+            cep: end.zip ?? undefined,
+            logradouro: end.street ?? undefined,
+            numero: end.number ?? undefined,
+            complemento: end.complement ?? undefined,
+            bairro: end.district ?? undefined,
+            municipio: end.city ?? undefined,
+            uf: end.state ?? undefined,
+            codigoIbge: end.ibgeCode ?? undefined,
+            codigoPais: end.countryCode,
+          }
+        : undefined,
     },
     itens: itens.map((item) => ({
       catalogoItemId: item.catalogoItemId,

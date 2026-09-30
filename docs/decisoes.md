@@ -1293,3 +1293,29 @@ commit acontecer, e revertido manualmente. `FOUNDATION_PATHS` virou
 `base-erp/scripts/foundation-paths.sh`, file-level por padrão; só um
 diretório inteiro entra na lista depois de confirmado idêntico via
 `diff -rq`.
+
+## 2026-09-30 — Campos fiscais no cadastro de cliente
+
+- **Colunas novas em `clientes`**: `type` (pf/pj, backfill pelo tamanho do
+  documento na migration), `legal_name`, `trade_name`, `ie_indicator`,
+  `ie`, `im`. Todas opcionais no cadastro: a exigência é checada só na
+  emissão (`fiscal/domain.ts#validarClienteParaNota`), com mensagem
+  listando o que falta — o cadastro nunca trava por dado fiscal.
+- **Tabela `cliente_enderecos`** (1:N, `kind` principal/cobranca/entrega,
+  único parcial por cliente no `principal`; RLS em
+  `migrations-custom/0011`). O form edita só o principal. A coluna
+  `clientes.address` (texto livre) foi mantida como fallback de dados
+  antigos, mas não é mais editada.
+- **Código IBGE via ViaCEP** (`core/cep.ts`, chamado por `buscarCep` — server
+  action com sessão, sem rota pública). Falha/CEP inexistente ⇒ digitação
+  manual.
+- **Form**: campos controlados + seções recolhíveis (Dados fiscais,
+  Endereço). Erro de validação só marca o campo (o React 19 reseta forms
+  não controlados após a action, por isso o estado vive no componente).
+- **Emissão**: `FiscalClientePayload` ganhou razão social, IE, IM e
+  `enderecoEstruturado`; `fiscal-actions.ts` passou a usar
+  `getClienteById` em vez do join do pedido. NF-e exige documento,
+  endereço completo + IBGE, IE (se contribuinte) e razão social (PJ);
+  NFS-e exige CEP, UF e IBGE do tomador. IM do tomador não é exigida.
+- **LGPD**: `anonymizeCliente` zera campos fiscais e apaga os endereços.
+- Fora de escopo: NFC-e, NCM/CFOP, IE/IM do emitente.

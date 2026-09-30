@@ -1,6 +1,6 @@
 import { registerModule } from "@/core/registry";
 import { registerBackupTable } from "@/core/backup";
-import { clientes } from "./schema";
+import { clientes, clienteEnderecos } from "./schema";
 
 registerModule({
   slug: "clientes",
@@ -15,4 +15,10 @@ registerBackupTable({
   key: "clientes",
   table: clientes,
   dateColumns: ["anonymizedAt", "createdAt", "updatedAt"],
+});
+
+registerBackupTable({
+  key: "cliente_enderecos",
+  table: clienteEnderecos,
+  dateColumns: ["createdAt", "updatedAt"],
 });

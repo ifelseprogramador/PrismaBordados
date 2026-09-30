@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
-import { clientes } from "./schema";
+import { clientes, clienteEnderecos } from "./schema";
 
 export const CLIENTE_SORT_OPTIONS = {
   name_asc: "Nome (A→Z)",
@@ -47,7 +47,13 @@ export async function getClienteById(id: string) {
       .from(clientes)
       .where(and(eq(clientes.id, id), eq(clientes.organizationId, organizationId)))
       .limit(1);
-    return cliente ?? null;
+    if (!cliente) return null;
+    const [endereco] = await tx
+      .select()
+      .from(clienteEnderecos)
+      .where(and(eq(clienteEnderecos.clienteId, id), eq(clienteEnderecos.kind, "principal")))
+      .limit(1);
+    return { ...cliente, endereco: endereco ?? null };
   });
 }
 
