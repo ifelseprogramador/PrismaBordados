@@ -3,21 +3,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { requireEnv } from "@/core/env";
 
-// `/privacidade` precisa ser pública por exigência da própria LGPD — um
-// aviso de privacidade que só quem já tem login consegue ler não cumpre
-// a finalidade de informar o titular antes/independente do cadastro. Ver
-// docs/lgpd-checklist.md.
-//
-// `/redefinir-senha` PRECISA ser pública mesmo sendo, na prática, "a
-// pessoa provando quem é" — o token de recuperação que autentica ali
-// vive só no hash da URL, processado pelo cliente Supabase do
-// NAVEGADOR (`createSupabaseBrowserClient`) depois que a página já
-// carregou. Este middleware roda ANTES disso, no servidor, e não teria
-// como ver essa sessão ainda — sem estar na lista, o próprio link do
-// e-mail de recuperação cairia num redirect pro /login antes da página
-// ter a chance de processar o token. Ver
-// `(auth)/redefinir-senha/reset-password-form.tsx`.
-const PUBLIC_PATHS = ["/login", "/privacidade", "/esqueci-senha", "/redefinir-senha"];
+// "/d/" = link público de documento compartilhado com o cliente (core/share).
+const PUBLIC_PATHS = ["/login", "/d/"];
 
 /**
  * Renova a sessão do Supabase a cada request e redireciona para /login
