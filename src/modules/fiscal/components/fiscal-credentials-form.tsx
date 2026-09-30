@@ -165,7 +165,12 @@ export function FiscalCredentialsForm({ summary }: { summary: FiscalCredentialsS
   ) => (
     <details
       open={isOpen(key)}
-      onToggle={(e) => setOpen((o) => ({ ...o, [key]: e.currentTarget.open }))}
+      onToggle={(e) => {
+        // Ler `currentTarget` ANTES do updater: dentro dele o evento já foi
+        // liberado e `currentTarget` é null ("reading 'open'").
+        const isOpen = e.currentTarget.open;
+        setOpen((o) => ({ ...o, [key]: isOpen }));
+      }}
       className="rounded-lg border [&[open]>summary>svg]:rotate-90"
     >
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium">
