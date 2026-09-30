@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildEmitentePayload } from "../domain";
 import { runCancelamento, runEmissaoParaPedido } from "../run-emissao";
 import { resolveFiscalProvider } from "../resolve-provider";
 import { FakeFiscalProvider } from "./provider.fake";
@@ -13,6 +14,7 @@ describe("runEmissaoParaPedido", () => {
         organizationId: "org-1",
         pedidoId: "pedido-1",
         pedidoNumber: 10,
+        emitente: buildEmitentePayload(undefined),
         cliente: CLIENTE,
         itens: [{ catalogoItemId: "cat-1", produto: "Toalha", quantity: 2, unitPriceCents: 3000 }],
       },
@@ -32,6 +34,7 @@ describe("runEmissaoParaPedido", () => {
         organizationId: "org-1",
         pedidoId: "pedido-1",
         pedidoNumber: 10,
+        emitente: buildEmitentePayload(undefined),
         cliente: CLIENTE,
         itens: [
           { catalogoItemId: "cat-1", produto: "Toalha", quantity: 1, unitPriceCents: 3000 },
@@ -59,6 +62,7 @@ describe("runEmissaoParaPedido", () => {
         organizationId: "org-1",
         pedidoId: "pedido-1",
         pedidoNumber: 10,
+        emitente: buildEmitentePayload(undefined),
         cliente: CLIENTE,
         itens: [{ catalogoItemId: "cat-1", produto: "Toalha", quantity: 1, unitPriceCents: 3000 }],
       },
@@ -77,6 +81,7 @@ describe("runEmissaoParaPedido", () => {
         organizationId: "org-1",
         pedidoId: "pedido-1",
         pedidoNumber: 10,
+        emitente: buildEmitentePayload(undefined),
         cliente: CLIENTE,
         itens: [{ catalogoItemId: "cat-1", produto: "Toalha", quantity: 1, unitPriceCents: 3000 }],
       },

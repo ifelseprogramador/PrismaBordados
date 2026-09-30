@@ -3,10 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
+import { lookupCep, type CepResult } from "@/core/cep";
 import type { ActionResult } from "@/core/action-result";
 import { fiscalCredentials, fiscalNotas } from "./schema";
 import { resolveFiscalProvider } from "./resolve-provider";
-import { validarClienteParaNota, type PedidoItemLike } from "./domain";
+import {
+  buildEmitentePayload,
+  buildFiscalItemPayload,
+  validarClienteParaNota,
+  validarEmitente,
+  validarItensParaNota,
+  type PedidoItemLike,
+} from "./domain";
 import type { FiscalClientePayload } from "./provider";
 import { runCancelamento, runEmissaoParaPedido } from "./run-emissao";
 import { encryptApiKeyPlaceholder } from "./crypto-placeholder";
@@ -51,11 +59,22 @@ export async function emitirNotaFiscal(input: EmitirNotaFiscalInput): Promise<Ac
 
   const [credentials] = await withDb((tx) =>
     tx
-      .select({ providerSlug: fiscalCredentials.providerSlug })
+      .select()
       .from(fiscalCredentials)
       .where(eq(fiscalCredentials.organizationId, organizationId))
       .limit(1),
   );
+  const emitente = buildEmitentePayload(credentials);
+  const pendenciasEmitente = [
+    ...validarEmitente(emitente, input.itens),
+    ...validarItensParaNota(input.itens.map((i) => buildFiscalItemPayload(i, emitente))),
+  ];
+  if (pendenciasEmitente.length > 0) {
+    return {
+      ok: false,
+      message: `Complete a configuração fiscal (menu Fiscal) ou o cadastro do item: ${pendenciasEmitente.join("; ")}.`,
+    };
+  }
   const provider = resolveFiscalProvider(credentials?.providerSlug);
 
   // Núcleo puro (sem banco), testável com um provider fake — ver
@@ -65,6 +84,7 @@ export async function emitirNotaFiscal(input: EmitirNotaFiscalInput): Promise<Ac
       organizationId,
       pedidoId: input.pedidoId,
       pedidoNumber: input.pedidoNumber,
+      emitente,
       cliente: input.cliente,
       itens: input.itens,
     },
@@ -144,6 +164,12 @@ export async function cancelarNotaFiscal(notaId: string, motivo: string): Promis
   return { ok: true };
 }
 
+/** Autocomplete de endereço da empresa por CEP (ViaCEP). Exige sessão. */
+export async function buscarCepEmitente(cep: string): Promise<CepResult | null> {
+  await withOrg();
+  return lookupCep(cep);
+}
+
 export async function saveFiscalCredentials(
   _prevState: ActionResult,
   formData: FormData,
@@ -158,7 +184,17 @@ export async function saveFiscalCredentials(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const { apiKey, ...rest } = parsed.data;
+  const { apiKey, issRate, ...fields } = parsed.data;
+  // Campo vazio vira NULL (senão `undefined` no upsert manteria o valor antigo
+  // e o usuário nunca conseguiria limpar um campo).
+  const rest = {
+    ...Object.fromEntries(
+      Object.entries({ ...fields, issRateBps: issRate }).map(([k, v]) => [k, v ?? null]),
+    ),
+    cnpj: fields.cnpj ? fields.cnpj.replace(/\D/g, "") : null,
+    zip: fields.zip ? fields.zip.replace(/\D/g, "") : null,
+    state: fields.state ? fields.state.toUpperCase() : null,
+  };
 
   await withDb((tx) =>
     tx

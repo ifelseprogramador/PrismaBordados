@@ -1,11 +1,27 @@
 import type { Cents } from "@/core/money";
-import type { FiscalClientePayload, FiscalItemPayload, FiscalOperacaoTipo } from "./provider";
+import {
+  isValidCfop,
+  isValidCnae,
+  isValidCodigoServico,
+  isValidCst,
+  isValidNcm,
+  isValidOrigem,
+} from "@/core/fiscal-fields";
+import type {
+  FiscalClientePayload,
+  FiscalEmitentePayload,
+  FiscalItemFiscalPayload,
+  FiscalItemPayload,
+  FiscalOperacaoTipo,
+} from "./provider";
 
 export interface PedidoItemLike {
   catalogoItemId?: string | null;
   produto: string;
   quantity: number | string;
   unitPriceCents: Cents;
+  /** Dados fiscais próprios do item (vindos do catálogo, quando há vínculo). */
+  fiscal?: FiscalItemFiscalPayload;
 }
 
 /**
@@ -31,12 +47,38 @@ export function decideOperacaoTipo(
   return item.catalogoItemId ? "venda" : "servico";
 }
 
-export function buildFiscalItemPayload(item: PedidoItemLike): FiscalItemPayload {
+/** Item + padrões do emitente: NCM/CFOP caem no padrão; serviço usa LC 116/CNAE/ISS do emitente. */
+export function resolverFiscalDoItem(
+  item: PedidoItemLike,
+  emitente: FiscalEmitentePayload,
+): FiscalItemFiscalPayload {
+  const f = item.fiscal ?? {};
+  if (decideOperacaoTipo(item) === "servico") {
+    return {
+      codigoServico: f.codigoServico ?? emitente.defaults.codigoServico,
+      cnae: f.cnae ?? emitente.defaults.cnae,
+      aliquotaIssBps: f.aliquotaIssBps ?? emitente.defaults.aliquotaIssBps,
+    };
+  }
+  return {
+    ncm: f.ncm ?? emitente.defaults.ncm,
+    cfop: f.cfop ?? emitente.defaults.cfop,
+    unidade: f.unidade ?? "UN",
+    origem: f.origem ?? "0",
+    cst: f.cst,
+  };
+}
+
+export function buildFiscalItemPayload(
+  item: PedidoItemLike,
+  emitente: FiscalEmitentePayload,
+): FiscalItemPayload {
   return {
     descricao: item.produto,
     quantidade: Number(item.quantity),
     valorUnitarioCents: item.unitPriceCents,
     tipoOperacao: decideOperacaoTipo(item),
+    fiscal: resolverFiscalDoItem(item, emitente),
   };
 }
 
@@ -104,4 +146,121 @@ export function validarClienteParaNota(
   }
   // Pedido misto (NF-e + NFS-e): as regras de NF-e já cobrem as de NFS-e.
   return faltando;
+}
+
+/**
+ * Dados do EMITENTE exigidos pelo tipo de nota. NF-e: CNPJ, razão social,
+ * IE, regime, série e endereço completo com IBGE. NFS-e: CNPJ, razão social,
+ * IM, regime e município (IBGE).
+ */
+export function validarEmitente(
+  emitente: FiscalEmitentePayload,
+  itens: Pick<PedidoItemLike, "catalogoItemId">[],
+): string[] {
+  const tipos = new Set(itens.map(decideOperacaoTipo));
+  const e = emitente.endereco;
+  const faltando: string[] = [];
+  const exige = (ok: unknown, label: string) => {
+    if (!ok) faltando.push(label);
+  };
+
+  exige(emitente.cnpj, "CNPJ da empresa");
+  exige(emitente.razaoSocial, "razão social da empresa");
+  exige(emitente.regimeTributario, "regime tributário");
+  if (tipos.has("venda")) {
+    exige(emitente.ie, "Inscrição Estadual da empresa");
+    exige(emitente.serieNota, "série da nota");
+    for (const [k, label] of [
+      ["cep", "CEP"],
+      ["logradouro", "logradouro"],
+      ["numero", "número"],
+      ["bairro", "bairro"],
+      ["municipio", "cidade"],
+      ["uf", "UF"],
+      ["codigoIbge", "código IBGE"],
+    ] as const) {
+      exige(e[k], `${label} da empresa`);
+    }
+  }
+  if (tipos.has("servico")) {
+    exige(emitente.im, "Inscrição Municipal da empresa");
+    exige(e.codigoIbge, "código IBGE da empresa");
+  }
+  return faltando;
+}
+
+/** Dados fiscais dos ITENS já resolvidos com os padrões do emitente. */
+export function validarItensParaNota(itens: FiscalItemPayload[]): string[] {
+  const faltando = new Set<string>();
+  for (const item of itens) {
+    const f = item.fiscal;
+    const nome = item.descricao;
+    if (item.tipoOperacao === "venda") {
+      if (!f.ncm || !isValidNcm(f.ncm)) faltando.add(`NCM válido (${nome})`);
+      if (!f.cfop || !isValidCfop(f.cfop)) faltando.add(`CFOP válido (${nome})`);
+      if (!f.cst || !isValidCst(f.cst)) faltando.add(`CST/CSOSN (${nome})`);
+      if (!f.origem || !isValidOrigem(f.origem)) faltando.add(`origem (${nome})`);
+    } else {
+      if (!f.codigoServico || !isValidCodigoServico(f.codigoServico))
+        faltando.add("código do serviço (LC 116) nos padrões fiscais");
+      if (f.cnae && !isValidCnae(f.cnae)) faltando.add("CNAE válido nos padrões fiscais");
+      if (f.aliquotaIssBps === undefined) faltando.add("alíquota de ISS nos padrões fiscais");
+    }
+  }
+  return [...faltando];
+}
+
+/** Colunas de `fiscal_credentials` que formam o emitente (sem segredos). */
+export interface EmitenteRow {
+  cnpj: string | null;
+  razaoSocial: string | null;
+  nomeFantasia: string | null;
+  ie: string | null;
+  im: string | null;
+  regimeTributario: string | null;
+  serieNota: string | null;
+  zip: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  district: string | null;
+  city: string | null;
+  state: string | null;
+  ibgeCode: string | null;
+  defaultNcm: string | null;
+  defaultCfop: string | null;
+  codigoServico: string | null;
+  cnae: string | null;
+  issRateBps: number | null;
+}
+
+export function buildEmitentePayload(row: EmitenteRow | undefined): FiscalEmitentePayload {
+  const n = <T>(v: T | null | undefined) => v ?? undefined;
+  return {
+    cnpj: n(row?.cnpj)?.replace(/\D/g, ""),
+    razaoSocial: n(row?.razaoSocial),
+    nomeFantasia: n(row?.nomeFantasia),
+    ie: n(row?.ie),
+    im: n(row?.im),
+    regimeTributario: n(row?.regimeTributario) as FiscalEmitentePayload["regimeTributario"],
+    serieNota: n(row?.serieNota),
+    endereco: {
+      cep: n(row?.zip),
+      logradouro: n(row?.street),
+      numero: n(row?.number),
+      complemento: n(row?.complement),
+      bairro: n(row?.district),
+      municipio: n(row?.city),
+      uf: n(row?.state),
+      codigoIbge: n(row?.ibgeCode),
+      codigoPais: "1058",
+    },
+    defaults: {
+      ncm: n(row?.defaultNcm),
+      cfop: n(row?.defaultCfop),
+      codigoServico: n(row?.codigoServico),
+      cnae: n(row?.cnae),
+      aliquotaIssBps: n(row?.issRateBps),
+    },
+  };
 }

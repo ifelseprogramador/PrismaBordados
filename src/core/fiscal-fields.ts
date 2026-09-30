@@ -59,3 +59,24 @@ export function isValidIe(value: string): boolean {
   const v = value.replace(/[.\-/\s]/g, "");
   return /^[0-9A-Za-z]{2,14}$/.test(v);
 }
+
+/** NCM: 8 dígitos. */
+export const isValidNcm = (v: string) => /^\d{8}$/.test(onlyDigits(v));
+/** CFOP de saída: 4 dígitos começando em 5 (dentro do estado), 6 (fora) ou 7 (exterior). */
+export const isValidCfop = (v: string) => /^[567]\d{3}$/.test(onlyDigits(v));
+/** CNAE: 7 dígitos. */
+export const isValidCnae = (v: string) => /^\d{7}$/.test(onlyDigits(v));
+/** Item da lista de serviços (LC 116): "14.01" ou "1401" (alguns municípios usam 6 dígitos). */
+export const isValidCodigoServico = (v: string) =>
+  /^(\d{1,2}\.\d{2}(\.\d{2})?|\d{4,6})$/.test(v.trim());
+/** CST (2 dígitos, regime normal) ou CSOSN (3 dígitos, Simples Nacional). */
+export const isValidCst = (v: string) => /^\d{2,3}$/.test(v.trim());
+/** Origem da mercadoria: 0 a 8. */
+export const isValidOrigem = (v: string) => /^[0-8]$/.test(v.trim());
+/** "2,5" (%) → 250 (centésimos de ponto percentual). `null` se inválido. */
+export function parsePercentToBps(v: string): number | null {
+  const n = Number(v.trim().replace(",", "."));
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null;
+  return Math.round(n * 100);
+}
+export const formatBpsAsPercent = (bps: number) => String(bps / 100).replace(".", ",");

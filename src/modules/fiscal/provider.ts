@@ -15,10 +15,41 @@ import type { Cents } from "@/core/money";
 
 export type FiscalOperacaoTipo = "venda" | "servico";
 
+/** Dados fiscais resolvidos de um item (item próprio ou padrão do emitente). */
+export interface FiscalItemFiscalPayload {
+  ncm?: string;
+  cfop?: string;
+  unidade?: string;
+  /** Origem da mercadoria, 0 a 8. */
+  origem?: string;
+  /** CST (regime normal) ou CSOSN (Simples Nacional). */
+  cst?: string;
+  /** NFS-e: item da LC 116, CNAE e alíquota de ISS em centésimos de %. */
+  codigoServico?: string;
+  cnae?: string;
+  aliquotaIssBps?: number;
+}
+
+export interface FiscalEmitentePayload {
+  cnpj?: string;
+  razaoSocial?: string;
+  nomeFantasia?: string;
+  ie?: string;
+  im?: string;
+  regimeTributario?: "mei" | "simples_nacional" | "lucro_presumido" | "lucro_real";
+  serieNota?: string;
+  endereco: Partial<FiscalEnderecoPayload>;
+  defaults: { ncm?: string; cfop?: string } & Pick<
+    FiscalItemFiscalPayload,
+    "codigoServico" | "cnae" | "aliquotaIssBps"
+  >;
+}
+
 export interface FiscalItemPayload {
   descricao: string;
   quantidade: number;
   valorUnitarioCents: Cents;
+  fiscal: FiscalItemFiscalPayload;
   /** "venda" = peça pronta vendida (gera NF-e); "servico" = bordado sobre
    * peça trazida pelo cliente (gera NFS-e). Ver `domain.ts#decideOperacaoTipo`
    * para a regra que decide isto a partir de um item de pedido. */
@@ -62,6 +93,7 @@ export interface FiscalEmissaoPayload {
   organizationId: string;
   pedidoId: string;
   pedidoNumber: number;
+  emitente: FiscalEmitentePayload;
   cliente: FiscalClientePayload;
   itens: FiscalItemPayload[];
   valorTotalCents: Cents;

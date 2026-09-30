@@ -1,4 +1,4 @@
-import { pgTable, pgEnum, uuid, text, jsonb, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, uuid, text, jsonb, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { organizations } from "@/db/schema/tenancy";
 import { pedidos } from "@/modules/pedidos/schema";
@@ -34,6 +34,27 @@ export const fiscalCredentials = pgTable("fiscal_credentials", {
   cnpj: text("cnpj"),
   regimeTributario: text("regime_tributario"),
   serieNota: text("serie_nota"),
+  // Emitente (exigido em NF-e/NFS-e) — todos opcionais; a exigência é checada
+  // na emissão (`domain.ts#validarEmitente`).
+  razaoSocial: text("razao_social"),
+  nomeFantasia: text("nome_fantasia"),
+  ie: text("ie"),
+  im: text("im"),
+  zip: text("zip"),
+  street: text("street"),
+  number: text("number"),
+  complement: text("complement"),
+  district: text("district"),
+  city: text("city"),
+  state: text("state"),
+  ibgeCode: text("ibge_code"),
+  // Padrões usados quando o item não tem dado fiscal próprio.
+  defaultNcm: text("default_ncm"),
+  defaultCfop: text("default_cfop"),
+  // Serviço (NFS-e): item da LC 116, CNAE e alíquota de ISS (centésimos de %).
+  codigoServico: text("codigo_servico"),
+  cnae: text("cnae"),
+  issRateBps: integer("iss_rate_bps"),
   providerConfig: jsonb("provider_config"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

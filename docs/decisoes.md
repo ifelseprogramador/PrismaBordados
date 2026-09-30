@@ -1319,3 +1319,25 @@ diretório inteiro entra na lista depois de confirmado idêntico via
   NFS-e exige CEP, UF e IBGE do tomador. IM do tomador não é exigida.
 - **LGPD**: `anonymizeCliente` zera campos fiscais e apaga os endereços.
 - Fora de escopo: NFC-e, NCM/CFOP, IE/IM do emitente.
+
+## 2026-09-30 — Emitente, produto e serviço para a emissão fiscal
+
+- **Emitente em `fiscal_credentials`** (não em `organizations`, que é
+  fundação e sincroniza com o BaseERP): razão social, fantasia, IE, IM,
+  endereço estruturado com IBGE, padrões (`default_ncm`, `default_cfop`) e
+  de serviço (`codigo_servico` LC 116, `cnae`, `iss_rate_bps`).
+  `regimeTributario` agora é um enum de texto (`mei`, `simples_nacional`,
+  `lucro_presumido`, `lucro_real`); valores antigos em texto livre precisam
+  ser reescolhidos na tela Fiscal.
+- **Item de catálogo** (`catalogo_bordado_itens`): `ncm`, `cfop`, `unidade`,
+  `origem`, `cst`. Serviço (item sem vínculo ao catálogo) não tem campos por
+  item: usa LC 116/CNAE/ISS do emitente.
+- **Resolução**: `domain.ts#resolverFiscalDoItem` mescla item + padrões do
+  emitente; `validarEmitente` e `validarItensParaNota` (puras) listam o que
+  falta antes de chamar o provedor. `FiscalEmissaoPayload` ganhou `emitente`
+  e cada item ganhou `fiscal`. Orquestração em
+  `pedidos/[id]/fiscal-actions.ts` (lê o catálogo via barrel).
+- **Formulários** de Fiscal e Catálogo passaram a campos controlados (erro só
+  marca o campo) com seções recolhíveis e CEP → ViaCEP no emitente.
+- Fora de escopo: NFC-e, IBS/CBS (reforma tributária), certificado A1 e
+  cálculo de tributos (responsabilidade do provedor).

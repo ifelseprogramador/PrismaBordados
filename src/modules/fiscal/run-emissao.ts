@@ -1,6 +1,7 @@
 import type {
   FiscalCancelamentoResultado,
   FiscalClientePayload,
+  FiscalEmitentePayload,
   FiscalEmissaoPayload,
   FiscalEmissaoResultado,
   FiscalProvider,
@@ -11,6 +12,7 @@ export interface RunEmissaoInput {
   organizationId: string;
   pedidoId: string;
   pedidoNumber: number;
+  emitente: FiscalEmitentePayload;
   cliente: FiscalClientePayload;
   itens: PedidoItemLike[];
 }
@@ -47,8 +49,9 @@ export async function runEmissaoParaPedido(
       organizationId: input.organizationId,
       pedidoId: input.pedidoId,
       pedidoNumber: input.pedidoNumber,
+      emitente: input.emitente,
       cliente: input.cliente,
-      itens: grupo.itens.map(buildFiscalItemPayload),
+      itens: grupo.itens.map((i) => buildFiscalItemPayload(i, input.emitente)),
       valorTotalCents: grupo.itens.reduce(
         (total, item) => total + Math.round(item.unitPriceCents * Number(item.quantity)),
         0,

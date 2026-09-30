@@ -24,6 +24,14 @@ export const catalogoBordadoItens = pgTable(
     tamanhosAceitos: text("tamanhos_aceitos").array().notNull().default([]),
     coresAceitas: text("cores_aceitas").array().notNull().default([]),
     defaultPriceCents: integer("default_price_cents").notNull().default(0),
+    // Dados fiscais da peça pronta (NF-e). Opcionais; NCM/CFOP caem no
+    // padrão do emitente (`fiscal_credentials`) quando vazios.
+    ncm: text("ncm"),
+    cfop: text("cfop"),
+    unidade: text("unidade").notNull().default("UN"),
+    origem: text("origem").notNull().default("0"),
+    // CST (regime normal) ou CSOSN (Simples Nacional).
+    cst: text("cst"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

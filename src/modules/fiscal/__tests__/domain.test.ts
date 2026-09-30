@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildFiscalItemPayload, decideOperacaoTipo, splitItensPorOperacao } from "../domain";
+import {
+  buildEmitentePayload,
+  validarClienteParaNota,
+  validarEmitente,
+  validarItensParaNota,
+  buildFiscalItemPayload,
+  decideOperacaoTipo,
+  splitItensPorOperacao,
+} from "../domain";
 
 describe("decideOperacaoTipo", () => {
   it("item vinculado a um item de catálogo é venda (NF-e)", () => {
@@ -14,17 +22,16 @@ describe("decideOperacaoTipo", () => {
 
 describe("buildFiscalItemPayload", () => {
   it("monta o payload do item com o tipo de operação decidido", () => {
-    const payload = buildFiscalItemPayload({
-      catalogoItemId: "cat-1",
-      produto: "Toalha bordada",
-      quantity: "2",
-      unitPriceCents: 5000,
-    });
+    const payload = buildFiscalItemPayload(
+      { catalogoItemId: "cat-1", produto: "Toalha bordada", quantity: "2", unitPriceCents: 5000 },
+      buildEmitentePayload(undefined),
+    );
     expect(payload).toEqual({
       descricao: "Toalha bordada",
       quantidade: 2,
       valorUnitarioCents: 5000,
       tipoOperacao: "venda",
+      fiscal: { ncm: undefined, cfop: undefined, unidade: "UN", origem: "0", cst: undefined },
     });
   });
 });
@@ -56,8 +63,6 @@ describe("splitItensPorOperacao", () => {
     expect(servico).toHaveLength(1);
   });
 });
-
-import { validarClienteParaNota } from "../domain";
 
 describe("validarClienteParaNota", () => {
   const endereco = {
@@ -106,5 +111,74 @@ describe("validarClienteParaNota", () => {
       ]),
     ).toEqual([]);
     expect(validarClienteParaNota({ nome: "Maria" }, [{ catalogoItemId: null }])).toHaveLength(3);
+  });
+});
+
+describe("emitente e itens", () => {
+  const row = {
+    cnpj: "11.222.333/0001-81",
+    razaoSocial: "Bordados Ltda",
+    nomeFantasia: null,
+    ie: "123456",
+    im: "9876",
+    regimeTributario: "simples_nacional",
+    serieNota: "1",
+    zip: "01310100",
+    street: "Av. Paulista",
+    number: "1000",
+    complement: null,
+    district: "Bela Vista",
+    city: "São Paulo",
+    state: "SP",
+    ibgeCode: "3550308",
+    defaultNcm: "62179000",
+    defaultCfop: "5102",
+    codigoServico: "14.01",
+    cnae: null,
+    issRateBps: 250,
+  };
+
+  it("emitente completo não tem pendências; vazio lista as da NF-e", () => {
+    const itens = [{ catalogoItemId: "x" }];
+    expect(validarEmitente(buildEmitentePayload(row), itens)).toEqual([]);
+    const vazio = validarEmitente(buildEmitentePayload(undefined), itens);
+    expect(vazio).toContain("Inscrição Estadual da empresa");
+    expect(vazio).toContain("código IBGE da empresa");
+  });
+
+  it("NFS-e exige IM e IBGE, não IE", () => {
+    const r = validarEmitente(buildEmitentePayload({ ...row, im: null, ie: null }), [
+      { catalogoItemId: null },
+    ]);
+    expect(r).toEqual(["Inscrição Municipal da empresa"]);
+  });
+
+  it("item herda NCM/CFOP do emitente e exige CST", () => {
+    const em = buildEmitentePayload(row);
+    const item = { catalogoItemId: "x", produto: "Toalha", quantity: 1, unitPriceCents: 100 };
+    const semCst = validarItensParaNota([buildFiscalItemPayload(item, em)]);
+    expect(semCst).toEqual(["CST/CSOSN (Toalha)"]);
+    const ok = validarItensParaNota([
+      buildFiscalItemPayload({ ...item, fiscal: { cst: "102" } }, em),
+    ]);
+    expect(ok).toEqual([]);
+  });
+
+  it("serviço usa LC 116 e ISS do emitente", () => {
+    const em = buildEmitentePayload(row);
+    const p = buildFiscalItemPayload(
+      { catalogoItemId: null, produto: "Bordado", quantity: 1, unitPriceCents: 100 },
+      em,
+    );
+    expect(p.fiscal).toMatchObject({ codigoServico: "14.01", aliquotaIssBps: 250 });
+    expect(validarItensParaNota([p])).toEqual([]);
+    expect(
+      validarItensParaNota([
+        buildFiscalItemPayload(
+          { catalogoItemId: null, produto: "Bordado", quantity: 1, unitPriceCents: 100 },
+          buildEmitentePayload(undefined),
+        ),
+      ]),
+    ).toHaveLength(2);
   });
 });

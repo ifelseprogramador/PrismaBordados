@@ -28,7 +28,12 @@ documentação do provedor escolhido antes de implementar o adaptador.
 CPF/CNPJ, nome/razão social, endereço com código IBGE do município, CEP e
 e-mail. IM do tomador é opcional na maioria dos municípios.
 
-## Fora do cadastro de cliente (ainda a fazer na fase fiscal)
+## Já implementado (ver decisoes.md, 2026-09-30)
+
+Emitente (tela Fiscal), dados fiscais do item do catálogo e validação pré-emissão.
+Falta apenas o que está marcado abaixo como pendente.
+
+## Fora do cadastro de cliente
 
 - **Por nota:** natureza da operação, finalidade, presença do comprador
   (`indPres`), forma de pagamento, frete.

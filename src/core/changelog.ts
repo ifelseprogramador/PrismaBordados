@@ -24,6 +24,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.5.0",
+    date: "2026-09-30",
+    changes: [
+      {
+        type: "novo",
+        text: "Em Fiscal, agora dá para cadastrar os dados da sua empresa exigidos na nota: razão social, inscrições estadual e municipal, regime tributário, endereço (com preenchimento pelo CEP) e padrões de NCM, CFOP e serviço.",
+      },
+      {
+        type: "novo",
+        text: "No catálogo, cada peça ganhou uma seção de dados fiscais (NCM, CFOP, unidade, origem e CST/CSOSN).",
+      },
+      {
+        type: "melhoria",
+        text: "Ao emitir uma nota, se faltar algo na configuração fiscal ou no item, o sistema avisa exatamente o que completar.",
+      },
+      {
+        type: "correcao",
+        text: "Nos formulários de catálogo e fiscal, um erro em um campo não apaga mais o que já foi preenchido.",
+      },
+    ],
+  },
+  {
     version: "0.4.0",
     date: "2026-09-30",
     changes: [
