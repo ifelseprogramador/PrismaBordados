@@ -1353,3 +1353,10 @@ Migrations: `0010` (drizzle) + `0012_sharing_rls.sql` (RLS e função pública).
 Env novas: `SETTINGS_ENCRYPTION_KEY` (obrigatória só para o e-mail SMTP) e
 `NEXT_PUBLIC_SITE_URL` (opcional). Pendência LGPD: cron de purga de
 `shared_documents` expirados; registrar no aviso de privacidade.
+
+## 2026-09-30 — Mensagem de envio editável (core/share)
+
+Sincronizado do BaseERP (ver `base-erp/docs/decisoes.md`, mesma data):
+modelo de mensagem com variáveis e prévia, modal com cores das marcas e
+correção do link relativo quando `NEXT_PUBLIC_SITE_URL` está vazio.
+Dependência nova: `simple-icons`.
