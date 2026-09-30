@@ -45,6 +45,10 @@ export interface FiscalClientePayload {
   /** Endereço em texto livre (cadastros antigos) — preferir `enderecoEstruturado`. */
   endereco?: string;
   email?: string;
+  /** Só dígitos, DDD + número (NF-e: 6 a 14 dígitos). */
+  telefone?: string;
+  /** NF-e `indFinal`: PF ou não contribuinte de ICMS ⇒ consumidor final. */
+  consumidorFinal?: boolean;
   tipo?: "pf" | "pj";
   razaoSocial?: string;
   nomeFantasia?: string;

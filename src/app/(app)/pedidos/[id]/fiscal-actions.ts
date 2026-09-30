@@ -37,6 +37,8 @@ export async function emitirNotaFiscalDoPedido(pedidoId: string): Promise<Action
       documento: cliente.document ?? undefined,
       endereco: cliente.address ?? undefined,
       email: cliente.email ?? undefined,
+      telefone: cliente.phone ? cliente.phone.replace(/\D/g, "") || undefined : undefined,
+      consumidorFinal: cliente.type === "pf" || cliente.ieIndicator !== "contribuinte",
       tipo: cliente.type,
       razaoSocial: cliente.legalName ?? undefined,
       nomeFantasia: cliente.tradeName ?? undefined,
