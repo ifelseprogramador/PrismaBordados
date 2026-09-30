@@ -21,3 +21,4 @@ export * from "@/modules/catalogo-bordado/schema";
 export * from "@/modules/pedidos/schema";
 export * from "@/modules/financeiro/schema";
 export * from "@/modules/fiscal/schema";
+export * from "./schema/sharing";

@@ -80,3 +80,20 @@ export function parsePercentToBps(v: string): number | null {
   return Math.round(n * 100);
 }
 export const formatBpsAsPercent = (bps: number) => String(bps / 100).replace(".", ",");
+
+/** Endereço em uma linha para telas/impressão: "Rua X, 10 - Bairro - Cidade/UF - CEP". */
+export function formatAddressLine(
+  a?: {
+    street?: string | null;
+    number?: string | null;
+    district?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zip?: string | null;
+  } | null,
+): string {
+  if (!a) return "";
+  const street = [a.street, a.number].filter(Boolean).join(", ");
+  const city = [a.city, a.state].filter(Boolean).join("/");
+  return [street, a.district, city, a.zip ? formatCep(a.zip) : ""].filter(Boolean).join(" - ");
+}

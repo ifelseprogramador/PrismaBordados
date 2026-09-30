@@ -18,6 +18,8 @@ import { AdiantamentoForm } from "@/modules/pedidos/components/adiantamento-form
 import { registrarRecebimentoPedido } from "./financeiro-actions";
 import { deletePedidoCompleto } from "./delete-actions";
 import { EmitirNotaButton } from "./emitir-nota-button";
+import { ShareDocumentButton } from "@/components/share-document-button";
+import { compartilharNota, compartilharPedido } from "./share-actions";
 import { listFiscalNotasByPedido, FiscalNotasList } from "@/modules/fiscal";
 
 export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[id]">) {
@@ -43,6 +45,10 @@ export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[
         <h1 className="text-2xl font-semibold tracking-tight">Pedido #{pedido.number}</h1>
         <PedidoStatusBadge status={pedido.status} />
         <div className="ml-auto flex gap-2">
+          <ShareDocumentButton
+            action={compartilharPedido.bind(null, pedido.id)}
+            label={pedido.status === "orcamento" ? "Enviar orçamento" : "Enviar ao cliente"}
+          />
           <Button
             variant="outline"
             size="sm"
@@ -144,7 +150,18 @@ export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[
           {pedido.status === "entregue" && <EmitirNotaButton pedidoId={pedido.id} />}
         </CardHeader>
         <CardContent>
-          <FiscalNotasList notas={fiscalNotas} />
+          <FiscalNotasList
+            notas={fiscalNotas}
+            actions={(nota) =>
+              nota.status === "emitida" ? (
+                <ShareDocumentButton
+                  action={compartilharNota.bind(null, pedido.id, nota.id)}
+                  label="Enviar"
+                  variant="ghost"
+                />
+              ) : null
+            }
+          />
           {pedido.status !== "entregue" && (
             <p className="text-muted-foreground mt-2 text-xs">
               A emissão de nota fica disponível quando o pedido é marcado como entregue.

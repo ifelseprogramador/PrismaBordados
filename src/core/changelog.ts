@@ -24,6 +24,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.0",
+    date: "2026-09-30",
+    changes: [
+      {
+        type: "novo",
+        text: 'Botão "Enviar orçamento" / "Enviar ao cliente" no pedido: gera um link seguro e um PDF e envia por WhatsApp, e-mail ou compartilhamento do celular, com o PDF anexado.',
+      },
+      {
+        type: "novo",
+        text: "Notas fiscais emitidas também podem ser enviadas ao cliente com um clique.",
+      },
+      {
+        type: "novo",
+        text: "Em Perfil, opção avançada para o sistema enviar e-mails da sua empresa, com PDF anexo.",
+      },
+    ],
+  },
+  {
     version: "0.5.0",
     date: "2026-09-30",
     changes: [

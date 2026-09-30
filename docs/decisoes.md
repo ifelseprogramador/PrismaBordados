@@ -1341,3 +1341,15 @@ diretório inteiro entra na lista depois de confirmado idêntico via
   marca o campo) com seções recolhíveis e CEP → ViaCEP no emitente.
 - Fora de escopo: NFC-e, IBS/CBS (reforma tributária), certificado A1 e
   cálculo de tributos (responsabilidade do provedor).
+
+## 2026-09-30 — Enviar pedido/orçamento/nota ao cliente
+
+Usa a fundação `core/share` (ver `base-erp/docs/decisoes.md`, mesma data).
+Aqui: `app/(app)/pedidos/[id]/share-actions.ts` monta o snapshot do pedido
+(orçamento quando `status = orcamento`) e de cada nota emitida (links de
+PDF/XML do provedor) e devolve o link para o `ShareDocumentButton`;
+`FiscalNotasList` ganhou a prop `actions` para o botão por nota.
+Migrations: `0010` (drizzle) + `0012_sharing_rls.sql` (RLS e função pública).
+Env novas: `SETTINGS_ENCRYPTION_KEY` (obrigatória só para o e-mail SMTP) e
+`NEXT_PUBLIC_SITE_URL` (opcional). Pendência LGPD: cron de purga de
+`shared_documents` expirados; registrar no aviso de privacidade.

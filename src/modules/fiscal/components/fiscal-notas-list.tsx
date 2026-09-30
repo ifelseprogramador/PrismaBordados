@@ -18,7 +18,14 @@ const STATUS_VARIANT: Record<FiscalNota["status"], "default" | "secondary" | "de
 
 /** Lista as notas fiscais de um pedido (0, 1 ou 2 — NF-e e/ou NFS-e, ver
  * `domain.ts#splitItensPorOperacao`) com link de download quando existir. */
-export function FiscalNotasList({ notas }: { notas: FiscalNota[] }) {
+export function FiscalNotasList({
+  notas,
+  actions,
+}: {
+  notas: FiscalNota[];
+  /** Ações extras por nota (ex.: botão de enviar ao cliente), montadas pela página. */
+  actions?: (nota: FiscalNota) => React.ReactNode;
+}) {
   if (notas.length === 0) {
     return <p className="text-muted-foreground text-sm">Nenhuma nota fiscal emitida ainda.</p>;
   }
@@ -60,6 +67,7 @@ export function FiscalNotasList({ notas }: { notas: FiscalNota[] }) {
                 <FileDown className="h-3 w-3" /> XML
               </a>
             )}
+            {actions?.(nota)}
           </div>
         </li>
       ))}
