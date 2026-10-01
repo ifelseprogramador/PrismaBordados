@@ -29,11 +29,11 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       {
         type: "correcao",
-        text: "Na ficha do cliente, nomes muito grandes agora quebram em várias linhas em vez de desorganizar a tela e empurrar os botões.",
+        text: "A ficha do cliente ganhou um cabeçalho novo: avatar com as iniciais, nome em até 2 linhas (mesmo nomes de empresa bem grandes não bagunçam mais a tela) e selos com tipo, CPF/CNPJ e telefone.",
       },
       {
         type: "melhoria",
-        text: "A logo da empresa no topo do menu lateral ficou maior e mais fácil de ver.",
+        text: "A logo da empresa no topo do menu lateral ficou bem maior e mais fácil de ver.",
       },
     ],
   },
