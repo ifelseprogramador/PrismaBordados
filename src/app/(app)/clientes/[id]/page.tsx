@@ -2,8 +2,9 @@ import { notFound } from "next/navigation";
 import { BackButton } from "@/components/back-button";
 import { Badge } from "@/components/ui/badge";
 import { EntityHeader } from "@/components/entity-header";
+import { EmailBadge, PhoneBadge } from "@/components/contact-badges";
 import { formatDocument } from "@/core/document";
-import { Building2, IdCard, Phone, User } from "lucide-react";
+import { Building2, IdCard, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getClienteById, updateCliente } from "@/modules/clientes";
 import { ClienteForm } from "@/modules/clientes/components/cliente-form";
@@ -22,7 +23,7 @@ export default async function ClienteDetailPage({ params }: PageProps<"/clientes
     <div className="mx-auto flex max-w-lg flex-col gap-6">
       <EntityHeader
         title={cliente.name}
-        subtitle={cliente.type === "pj" ? (cliente.tradeName ?? cliente.legalName) : cliente.email}
+        subtitle={cliente.type === "pj" ? (cliente.tradeName ?? cliente.legalName) : null}
         back={<BackButton href="/clientes" />}
         actions={
           !cliente.anonymizedAt && (
@@ -52,12 +53,8 @@ export default async function ClienteDetailPage({ params }: PageProps<"/clientes
                   {formatDocument(cliente.document)}
                 </Badge>
               )}
-              {cliente.phone && (
-                <Badge variant="outline">
-                  <Phone data-icon="inline-start" />
-                  {cliente.phone}
-                </Badge>
-              )}
+              {cliente.phone && <PhoneBadge phone={cliente.phone} />}
+              {cliente.email && <EmailBadge email={cliente.email} />}
             </>
           )
         }

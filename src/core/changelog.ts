@@ -29,7 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       {
         type: "correcao",
-        text: "A ficha do cliente ganhou um cabeçalho novo: avatar com as iniciais, nome em até 2 linhas (mesmo nomes de empresa bem grandes não bagunçam mais a tela) e selos com tipo, CPF/CNPJ e telefone.",
+        text: "A ficha do cliente ganhou um cabeçalho novo: avatar com as iniciais, nome em até 2 linhas (mesmo nomes de empresa bem grandes não bagunçam mais a tela) e selos com tipo, CPF/CNPJ, telefone (toque abre o WhatsApp, ou liga se for fixo) e e-mail (toque abre o seu e-mail).",
       },
       {
         type: "melhoria",
