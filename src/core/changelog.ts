@@ -31,6 +31,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         type: "correcao",
         text: "Na ficha do cliente, nomes muito grandes agora quebram em várias linhas em vez de desorganizar a tela e empurrar os botões.",
       },
+      {
+        type: "melhoria",
+        text: "A logo da empresa no topo do menu lateral ficou maior e mais fácil de ver.",
+      },
     ],
   },
   {
