@@ -16,10 +16,17 @@ export default async function ClienteDetailPage({ params }: PageProps<"/clientes
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <BackButton href="/clientes" />
-          <h1 className="text-2xl font-semibold tracking-tight">{cliente.name}</h1>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 basis-60 items-start gap-2">
+          <span className="shrink-0">
+            <BackButton href="/clientes" />
+          </span>
+          <h1
+            title={cliente.name}
+            className="min-w-0 text-xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-2xl"
+          >
+            {cliente.name}
+          </h1>
         </div>
         {!cliente.anonymizedAt && (
           <ClientePrivacyActions

@@ -24,6 +24,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.1",
+    date: "2026-10-01",
+    changes: [
+      {
+        type: "correcao",
+        text: "Na ficha do cliente, nomes muito grandes agora quebram em várias linhas em vez de desorganizar a tela e empurrar os botões.",
+      },
+    ],
+  },
+  {
     version: "0.8.0",
     date: "2026-09-30",
     changes: [
