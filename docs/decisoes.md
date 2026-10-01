@@ -1360,3 +1360,23 @@ Sincronizado do BaseERP (ver `base-erp/docs/decisoes.md`, mesma data):
 modelo de mensagem com variáveis e prévia, modal com cores das marcas e
 correção do link relativo quando `NEXT_PUBLIC_SITE_URL` está vazio.
 Dependência nova: `simple-icons`.
+
+## 2026-09-30 — Importar/exportar clientes por planilha
+
+Usa a fundação `core/spreadsheet` + `SpreadsheetImportWizard` (ver
+`base-erp/docs/decisoes.md`, mesma data). Aqui:
+
+- `modules/clientes/spreadsheet.ts`: colunas em português (Nome, Tipo,
+  CPF/CNPJ, Telefone, E-mail, dados fiscais e endereço), rótulos da lista
+  ("Pessoa física") convertidos para os códigos internos, zeros à esquerda de
+  CPF/CEP/IBGE restaurados (o Excel os remove de células numéricas).
+- `modules/clientes/import-actions.ts`: `previewClientesImport` (lê e valida
+  tudo, **não grava**) e `confirmClientesImport` (revalida no servidor e grava
+  em lotes de 100; se um lote falha, regrava linha a linha para isolar o
+  erro). Existência = mesmo CPF/CNPJ; repetido dentro da planilha vira erro.
+  Duplicados: pular ou atualizar (célula em branco **não** apaga o que já
+  existe).
+- Rotas: `/clientes/importar` (assistente), `/clientes/modelo` (modelo
+  .xlsx), `/clientes/exportar` (`.xlsx`, ou `?formato=csv`). CSV continua
+  aceito na importação (`,` ou `;`, UTF-8 ou Windows-1252).
+- Exportação registrada em `lgpd_request_log` (uma linha por exportação, `subject_id` = a organização); clientes anonimizados ficam de fora.

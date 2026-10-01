@@ -24,6 +24,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.0",
+    date: "2026-09-30",
+    changes: [
+      {
+        type: "novo",
+        text: "Importar e exportar clientes por planilha ficou bem mais fácil: baixe o modelo em Excel (com instruções e listas para escolher), preencha e envie. Antes de gravar, o sistema mostra quantos estão prontos, quais já existem e o que precisa ser corrigido, linha por linha.",
+      },
+      {
+        type: "novo",
+        text: 'O botão "Planilha" na lista de clientes exporta para Excel (.xlsx) ou CSV, no mesmo formato do modelo: dá para editar e importar de volta. Arquivos CSV também continuam funcionando na importação.',
+      },
+      {
+        type: "melhoria",
+        text: "Ao importar, quem já existe (mesmo CPF/CNPJ) pode ser pulado ou atualizado, e células em branco não apagam dados já cadastrados.",
+      },
+    ],
+  },
+  {
     version: "0.6.2",
     date: "2026-09-30",
     changes: [

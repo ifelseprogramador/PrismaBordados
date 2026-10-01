@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SearchBox } from "@/components/search-box";
+import { SpreadsheetMenu } from "@/components/spreadsheet-menu";
 import { ActionLink } from "@/components/action-link";
 import { ListFilterBar } from "@/components/list-filter-bar";
 import { listClientes, CLIENTE_SORT_OPTIONS, type ClienteSort } from "@/modules/clientes/queries";
@@ -27,10 +28,13 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
           <Users className="text-primary h-6 w-6" />
           <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
         </div>
-        <Button nativeButton={false} render={<Link href="/clientes/novo" />}>
-          <Plus className="h-4 w-4" />
-          Novo cliente
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <SpreadsheetMenu importHref="/clientes/importar" exportHref="/clientes/exportar" />
+          <Button nativeButton={false} render={<Link href="/clientes/novo" />}>
+            <Plus className="h-4 w-4" />
+            Novo cliente
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
