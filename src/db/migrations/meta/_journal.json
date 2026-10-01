@@ -78,6 +78,13 @@
       "when": 1790800792689,
       "tag": "0010_useful_blue_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790821462278,
+      "tag": "0011_even_elektra",
+      "breakpoints": true
     }
   ]
 }

@@ -29,6 +29,7 @@ async function loadBase(pedidoId: string) {
       db
         .select({
           name: organizations.name,
+          displayName: organizations.displayName,
           document: organizations.document,
           phone: organizations.phone,
           address: organizations.address,
@@ -49,7 +50,7 @@ async function loadBase(pedidoId: string) {
   ].filter((l): l is string => Boolean(l));
 
   const issuer = {
-    issuerName: org.name,
+    issuerName: org.displayName || org.name,
     issuerLines: [
       org.document ? formatDocument(org.document) : "",
       org.phone ?? "",

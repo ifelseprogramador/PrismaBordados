@@ -1380,3 +1380,11 @@ Usa a fundação `core/spreadsheet` + `SpreadsheetImportWizard` (ver
   .xlsx), `/clientes/exportar` (`.xlsx`, ou `?formato=csv`). CSV continua
   aceito na importação (`,` ou `;`, UTF-8 ou Windows-1252).
 - Exportação registrada em `lgpd_request_log` (uma linha por exportação, `subject_id` = a organização); clientes anonimizados ficam de fora.
+
+## 2026-09-30 — Dados da empresa editáveis (display_name)
+
+Sincronizado do BaseERP (ver `base-erp/docs/decisoes.md`, mesma data):
+`organizations.display_name` + migration custom `0013` que libera
+`display_name`/`document`/`phone`/`address` para o dono da conta. Os documentos
+compartilhados (`pedidos/[id]/share-actions.ts`) passam a usar
+`displayName || name` como emissor.
