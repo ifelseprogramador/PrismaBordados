@@ -138,7 +138,7 @@ Em ordem sugerida de prioridade:
    0.1. **Dados fiscais do cliente** (2026-09-30): `clientes` ganhou razão
    social, IE, IM e `cliente_enderecos`. Anonimização zera os campos e apaga
    os endereços; nota emitida mantém guarda legal (Art. 16, I); backups
-   (`cliente_enderecos` está no registro de backup) retêm o dado até expirar.
+   (`cliente_enderecos` está no registro de backup). Documentos enviados ao cliente (`shared_documents`) expiram em 30 dias e são APAGADOS 7 dias depois pelo cron `/api/cron/purge-shared` retêm o dado até expirar.
    Criptografar CPF/CNPJ/endereço coluna a coluna foi avaliado e adiado (não
    exigido pela LGPD; quebraria a busca por documento).
 

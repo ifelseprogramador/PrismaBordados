@@ -1388,3 +1388,10 @@ Sincronizado do BaseERP (ver `base-erp/docs/decisoes.md`, mesma data):
 `display_name`/`document`/`phone`/`address` para o dono da conta. Os documentos
 compartilhados (`pedidos/[id]/share-actions.ts`) passam a usar
 `displayName || name` como emissor.
+
+## 2026-09-30 — Limpeza dos documentos compartilhados expirados
+
+Sincronizado do BaseERP (ver `base-erp/docs/decisoes.md`, mesma data): cron
+`/api/cron/purge-shared` (`30 6 * * *`, em `vercel.json`) apaga snapshots
+expirados/revogados há mais de 7 dias. Pendência de LGPD fechada em
+`docs/lgpd-checklist.md`.
