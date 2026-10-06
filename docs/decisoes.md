@@ -1477,3 +1477,10 @@ eventos anteriores ao quadro buscado, então o aviso ficava preso no espelho do
 suporte. Agora o widget tira um segundo quadro completo após 1,5 s e avisa o viewer
 (`resync`); o botão "Atualizar tela" do admin faz o mesmo sob demanda. A caixa de
 conversa é arrastável (`draggable-panel.tsx`).
+
+## 2026-10-06 — Painel da conversa: arrastável nos dois lados, aviso sonoro e não lidas (portado do BaseERP)
+
+Mesma mudança do BaseERP (ver `docs/decisoes.md` de lá): `SupportChatPanel` unifica
+a conversa do usuário e do admin — caixa flutuante arrastável que recolhe, aviso
+sonoro (Web Audio) de mensagem nova, título da aba piscando em segundo plano,
+botão de silenciar e contador de não lidas. Cada mensagem avisa uma vez.
