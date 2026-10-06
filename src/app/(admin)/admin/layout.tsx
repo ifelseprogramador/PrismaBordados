@@ -9,6 +9,7 @@ import { VersionBadge } from "@/components/version-badge";
 import { logout } from "@/app/(auth)/actions";
 import { listPendingUserRequestsForAdmin } from "@/core/live-support/queries";
 import { SupportNotificationBell } from "@/core/admin/components/support-notification-bell";
+import { AdminPresenceBeacon } from "@/core/admin/components/admin-presence-beacon";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getSession();
@@ -44,6 +45,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen flex-1 flex-col">
+      {/* Presença: enquanto este painel está aberto e visível, o "Chamar
+          suporte" dos usuários enxerga que há alguém online. */}
+      <AdminPresenceBeacon />
       <header className="flex items-center justify-between gap-2 border-b bg-zinc-950 px-3 py-3 text-zinc-50 sm:px-4">
         <Link href="/admin" className="flex min-w-0 items-center gap-2 hover:text-zinc-300">
           <ShieldAlert className="h-5 w-5 shrink-0" />

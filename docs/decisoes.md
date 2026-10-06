@@ -1450,3 +1450,21 @@ Pagamento (corrigia um risco financeiro real):
   duas pessoas diferentes pagando o mesmo pedido (são envios distintos).
 - As duas orquestrações exigem acesso a Pedidos E Financeiro; sem Financeiro a
   pessoa recebe mensagem clara em vez de um recebimento pela metade.
+
+## 2026-10-06 — Suporte ao vivo por pessoa, espera configurável e chat (portado do BaseERP)
+
+Mesma decisão do BaseERP (ver `docs/decisoes.md` de lá): sessão por PESSOA
+(`live_sessions.subject_user_id`, RLS só da pessoa e do admin), espera
+configurável (`platform_settings.support_wait_seconds`), pedido sem atendimento
+vira `missed` com aviso no Telegram (`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`),
+caixa de entrada no `/admin` para pedir acesso depois (a pessoa aprova), presença
+do admin por batida do painel e chat de texto. Migrations: drizzle
+`0014_live_support_per_user`, custom `0016_live_support_per_user`. Validado no
+Postgres em memória (28 cenários).
+
+Específico do Prisma: o TTL de 10 min de pedidos pendentes
+(`live-support/domain.ts#PENDING_SESSION_TTL_MINUTES`, varredura em
+`queries.ts`) foi absorvido pelo `expires_at` por pedido do BaseERP — o mesmo
+problema ("pedido esquecido pendurado") agora resolvido para os dois tipos de
+pedido, e sem encerrar um pedido do admin reaberto sobre uma sessão antiga.
+`domain.ts` e seu teste saíram; a regra equivalente está em `wait.ts`.
