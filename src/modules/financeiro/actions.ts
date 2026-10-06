@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
 import { financeiroLancamentos } from "./schema";
 import { parseLancamentoFormData, type LancamentoInput } from "./validation";
@@ -27,7 +27,7 @@ export interface LancamentoRecordInput extends LancamentoInput {
  * vice-versa, então essa orquestração roda FORA dos dois módulos.
  */
 export async function createLancamentoRecord(data: LancamentoRecordInput): Promise<InsertResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("financeiro");
   log.info("financeiro.lancamento.criar", { type: data.type, categoria: data.categoria });
 
   const [lancamento] = await withDb((tx) =>
@@ -50,7 +50,7 @@ export async function createLancamento(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { log } = await withOrg();
+  const { log } = await requireModule("financeiro");
   const parsed = parseLancamentoFormData(formData);
   if (!parsed.success) {
     log.warn("financeiro.lancamento.validacao_falhou", {
@@ -63,7 +63,7 @@ export async function createLancamento(
 }
 
 export async function deleteLancamento(lancamentoId: string): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("financeiro");
 
   const result = await withDb((tx) =>
     tx

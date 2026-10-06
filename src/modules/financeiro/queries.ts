@@ -1,6 +1,6 @@
 import "server-only";
 import { and, desc, eq, gt, gte, lte, lt, sql } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { financeiroLancamentos } from "./schema";
 import { calculateLucro } from "./domain";
 
@@ -27,7 +27,7 @@ export interface ListLancamentosOptions {
 }
 
 export async function listLancamentos(options?: ListLancamentosOptions) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("financeiro");
   const conditions = [eq(financeiroLancamentos.organizationId, organizationId)];
 
   if (options?.futuras) {
@@ -64,7 +64,7 @@ export async function listLancamentos(options?: ListLancamentosOptions) {
  * porque `financeiro` não sabe o que é um "pedido" (ver docs/decisoes.md).
  */
 export async function getFinanceiroDashboardSummary() {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("financeiro");
   const { start, end } = monthRange();
 
   return withDb(async (tx) => {
@@ -97,7 +97,7 @@ export interface MesEntradasSaidas {
 /** Série dos últimos `months` meses (entradas x saídas), do mais antigo
  * pro mais recente — alimenta `components/entradas-saidas-chart.tsx`. */
 export async function getEntradasSaidasPorMes(months = 6): Promise<MesEntradasSaidas[]> {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("financeiro");
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
 
@@ -150,7 +150,7 @@ export interface PrevisaoDespesas {
  * lado de entradas vem de `pedidos#getPrevisaoRecebimentos`, composto
  * junto na página (nenhum dos dois módulos importa o outro). */
 export async function getPrevisaoDespesas(): Promise<PrevisaoDespesas> {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("financeiro");
 
   return withDb(async (tx) => {
     const [row] = await tx

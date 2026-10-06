@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { lookupCep, type CepResult } from "@/core/cep";
 import type { ActionResult } from "@/core/action-result";
 import { fiscalCredentials, fiscalNotas } from "./schema";
@@ -41,7 +41,7 @@ export interface EmitirNotaFiscalInput {
  * daqui.
  */
 export async function emitirNotaFiscal(input: EmitirNotaFiscalInput): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("fiscal");
   log.info("fiscal.emitir", { pedidoId: input.pedidoId });
 
   if (input.itens.length === 0) {
@@ -124,7 +124,7 @@ export async function emitirNotaFiscal(input: EmitirNotaFiscalInput): Promise<Ac
 }
 
 export async function cancelarNotaFiscal(notaId: string, motivo: string): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("fiscal");
 
   const [nota] = await withDb((tx) =>
     tx
@@ -166,7 +166,7 @@ export async function cancelarNotaFiscal(notaId: string, motivo: string): Promis
 
 /** Autocomplete de endereço da empresa por CEP (ViaCEP). Exige sessão. */
 export async function buscarCepEmitente(cep: string): Promise<CepResult | null> {
-  await withOrg();
+  await requireModule("fiscal");
   return lookupCep(cep);
 }
 
@@ -174,7 +174,7 @@ export async function saveFiscalCredentials(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("fiscal");
 
   const parsed = parseFiscalCredentialsFormData(formData);
   if (!parsed.success) {
@@ -230,7 +230,7 @@ export async function saveFiscalCredentials(
  * confirmado, sem checar de novo.
  */
 export async function deleteFiscalNotasForPedido(pedidoId: string): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("fiscal");
 
   await withDb((db) =>
     db

@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { and, eq, isNull } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { SpreadsheetError } from "@/core/spreadsheet/columns";
 import { readSheet } from "@/core/spreadsheet/xlsx";
 import type {
@@ -48,7 +48,7 @@ async function analyze(formData: FormData) {
   if (sheet.rows.length === 0)
     throw new SpreadsheetError("A planilha não tem nenhuma linha preenchida.");
 
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("clientes");
   const existing = await withDb((tx) =>
     tx
       .select({ id: clientes.id, document: clientes.document })
@@ -159,7 +159,7 @@ export async function confirmClientesImport(formData: FormData): Promise<ImportD
     return { ...base, ...failure(e) };
   }
 
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("clientes");
   const result = { ...base };
 
   // --- novos: em lotes; se um lote falhar, tenta linha a linha para isolar o problema ---

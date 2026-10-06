@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { withOrg } from "@/core/auth";
+import { requireOwner } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
 import { setPrivacySettings } from "./settings";
 import { parsePrivacySettingsFormData } from "./validation";
@@ -10,7 +10,7 @@ export async function updatePrivacySettings(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireOwner();
 
   const parsed = parsePrivacySettingsFormData(formData);
   if (!parsed.success) {

@@ -1,5 +1,5 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { ModuleAccessDeniedError, requireModule } from "@/core/auth";
 import { recordLgpdAction } from "@/core/audit-log";
 import { toCsv } from "@/core/csv";
 import { buildExport } from "@/core/spreadsheet/xlsx";
@@ -14,7 +14,11 @@ import { SHEET_NAME, clienteColumns, clienteToRow } from "@/modules/clientes/spr
  * própria organização).
  */
 export async function GET(request: Request) {
-  const { organizationId, userId, withDb } = await withOrg();
+  const ctx = await requireModule("clientes").catch((err) =>
+    err instanceof ModuleAccessDeniedError ? null : Promise.reject(err),
+  );
+  if (!ctx) return new Response("Acesso negado.", { status: 403 });
+  const { organizationId, userId, withDb } = ctx;
   const asCsv = new URL(request.url).searchParams.get("formato") === "csv";
 
   const rows = await withDb(async (tx) => {

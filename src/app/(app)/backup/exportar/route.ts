@@ -1,5 +1,5 @@
 import "@/core/load-modules"; // Route Handlers não passam pelo layout.tsx — importar aqui garante que registerBackupTable de cada módulo já rodou antes de buildOrgBackup iterar sobre BACKUP_TABLES.
-import { getActiveOrg, withOrg } from "@/core/auth";
+import { ModuleAccessDeniedError, getActiveOrg, requireOwner } from "@/core/auth";
 import { buildOrgBackup } from "@/core/backup";
 
 /**
@@ -10,7 +10,11 @@ import { buildOrgBackup } from "@/core/backup";
  * catalogo_bordado_itens, pedidos.
  */
 export async function GET() {
-  const [{ log, withDb }, activeOrg] = await Promise.all([withOrg(), getActiveOrg()]);
+  const access = await Promise.all([requireOwner(), getActiveOrg()]).catch((err) =>
+    err instanceof ModuleAccessDeniedError ? null : Promise.reject(err),
+  );
+  if (!access) return new Response("Acesso negado.", { status: 403 });
+  const [{ log, withDb }, activeOrg] = access;
   log.info("backup.exportar");
 
   const backup = await withDb((tx) =>

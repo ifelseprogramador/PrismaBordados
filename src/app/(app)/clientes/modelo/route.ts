@@ -1,10 +1,13 @@
-import { withOrg } from "@/core/auth";
+import { ModuleAccessDeniedError, requireModule } from "@/core/auth";
 import { buildTemplate } from "@/core/spreadsheet/xlsx";
 import { SHEET_NAME, clienteColumns } from "@/modules/clientes/spreadsheet";
 
 /** Modelo em branco para importar clientes (aba de instruções + listas suspensas). */
 export async function GET() {
-  await withOrg();
+  const ctx = await requireModule("clientes").catch((err) =>
+    err instanceof ModuleAccessDeniedError ? null : Promise.reject(err),
+  );
+  if (!ctx) return new Response("Acesso negado.", { status: 403 });
   const file = await buildTemplate({
     sheetName: SHEET_NAME,
     title: "Modelo de importação de clientes",

@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getActiveOrg, withOrg } from "@/core/auth";
+import { getActiveOrg, requireOwner } from "@/core/auth";
 import { getPrivacySettings } from "@/core/privacy/settings";
 import { PrivacySettingsForm } from "@/core/privacy/components/privacy-settings-form";
 import { PrivacyNoticePreview } from "@/core/privacy/components/privacy-notice-preview";
@@ -11,7 +11,7 @@ import { PrivacyNoticePreview } from "@/core/privacy/components/privacy-notice-p
  * docs/lgpd-checklist.md.
  */
 export default async function LgpdSettingsPage() {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireOwner();
   const [{ organizationName }, settings] = await Promise.all([
     getActiveOrg(),
     withDb((tx) => getPrivacySettings(tx, organizationId)),

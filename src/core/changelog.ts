@@ -24,6 +24,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.0",
+    date: "2026-10-06",
+    changes: [
+      {
+        type: "novo",
+        text: 'Empresas com o modo "vários usuários" liberado ganham a tela Equipe (menu da sua conta): o responsável adiciona pessoas, define o setor de cada uma e escolhe quais módulos ela pode abrir (Clientes, Pedidos, Financeiro, Fiscal, Catálogo).',
+      },
+      {
+        type: "melhoria",
+        text: "O Painel mostra só os blocos dos módulos que a pessoa pode abrir. Liberar Pedidos também libera Clientes e Catálogo, de que ele depende.",
+      },
+      {
+        type: "melhoria",
+        text: "Backup e Privacidade (LGPD) passam a ser exclusivos do responsável pela conta. Quem é desativado na Equipe perde o acesso na hora.",
+      },
+    ],
+  },
+  {
     version: "0.8.1",
     date: "2026-10-01",
     changes: [

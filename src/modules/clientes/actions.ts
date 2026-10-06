@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq, isNull } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { recordLgpdAction } from "@/core/audit-log";
 import type { ActionResult } from "@/core/action-result";
 import { lookupCep, type CepResult } from "@/core/cep";
@@ -15,7 +15,7 @@ export interface InsertResult extends ActionResult {
 
 /** Autocomplete de endereço por CEP (ViaCEP). Exige sessão; nunca lança. */
 export async function buscarCep(cep: string): Promise<CepResult | null> {
-  await withOrg();
+  await requireModule("clientes");
   return lookupCep(cep);
 }
 
@@ -23,7 +23,7 @@ export async function createCliente(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<InsertResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("clientes");
 
   const parsed = parseClienteFormData(formData);
   if (!parsed.success) {
@@ -60,7 +60,7 @@ export async function updateCliente(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("clientes");
 
   const parsed = parseClienteFormData(formData);
   if (!parsed.success) {
@@ -122,7 +122,7 @@ export async function updateCliente(
 }
 
 export async function deleteCliente(clienteId: string): Promise<ActionResult> {
-  const { organizationId, userId, log, withDb } = await withOrg();
+  const { organizationId, userId, log, withDb } = await requireModule("clientes");
 
   await withDb(async (tx) => {
     await tx
@@ -156,7 +156,7 @@ export async function deleteCliente(clienteId: string): Promise<ActionResult> {
  * regra 8 de `src/modules/README.md`).
  */
 export async function anonymizeCliente(clienteId: string): Promise<ActionResult> {
-  const { organizationId, userId, log, withDb } = await withOrg();
+  const { organizationId, userId, log, withDb } = await requireModule("clientes");
 
   const result = await withDb(async (tx) => {
     const rows = await tx

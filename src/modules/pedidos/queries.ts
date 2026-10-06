@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { clientes } from "@/modules/clientes/schema";
 import { pedidoItens, pedidoStatusEnum, pedidos } from "./schema";
 
@@ -37,7 +37,7 @@ export const PEDIDOS_ABERTOS_STATUSES = [
  * receber (soma de `saldoCents` de pedidos NÃO terminais — um pedido
  * cancelado nunca conta como "a receber", ver docs/decisoes.md). */
 export async function getPedidosDashboardSummary() {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("pedidos");
 
   return withDb(async (tx) => {
     const [statusCounts, [aReceber], recent] = await Promise.all([
@@ -97,7 +97,7 @@ export async function getPedidosDashboardSummary() {
  * (2) montar o export de portabilidade de dados do titular.
  */
 export async function listPedidosByClienteId(clienteId: string) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("pedidos");
 
   return withDb((tx) =>
     tx
@@ -150,7 +150,7 @@ export interface ClienteComSaldoAReceber {
  * incluindo `entregue` — ver comentário de `totalDevidoCents` acima.
  */
 export async function listClientesComSaldoAReceber(): Promise<ClienteComSaldoAReceber[]> {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("pedidos");
 
   return withDb((tx) =>
     tx
@@ -199,7 +199,7 @@ export interface PrevisaoRecebimentos {
  * dois módulos importa o outro, mesmo padrão de sempre).
  */
 export async function getPrevisaoRecebimentos(): Promise<PrevisaoRecebimentos> {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("pedidos");
 
   return withDb(async (tx) => {
     const [row] = await tx
@@ -247,7 +247,7 @@ export async function listPedidos(options?: {
   vencimentoProximos30Dias?: boolean;
   sort?: PedidoSort;
 }) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("pedidos");
 
   const term = options?.search?.trim();
   const conditions = [eq(pedidos.organizationId, organizationId)];
@@ -300,7 +300,7 @@ export async function listPedidos(options?: {
 }
 
 export async function getPedidoById(id: string) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("pedidos");
 
   return withDb(async (tx) => {
     const [pedido] = await tx
@@ -339,7 +339,7 @@ export async function getPedidoById(id: string) {
 }
 
 export async function listPedidoItens(pedidoId: string) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("pedidos");
 
   // `pedido_itens` não tem `organization_id` próprio — o join com
   // `pedidos` garante o isolamento por tenant mesmo se este método for

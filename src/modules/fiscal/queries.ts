@@ -1,10 +1,10 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { fiscalCredentials, fiscalNotas } from "./schema";
 
 export async function listFiscalNotasByPedido(pedidoId: string) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("fiscal");
 
   return withDb((tx) =>
     tx
@@ -20,7 +20,7 @@ export async function listFiscalNotasByPedido(pedidoId: string) {
 /** Nunca devolve `apiKeyEncrypted` — credenciais fiscais nunca chegam a
  * um Client Component (ver `src/modules/README.md`/docs/decisoes.md). */
 export async function getFiscalCredentialsSummary() {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("fiscal");
 
   return withDb(async (tx) => {
     const [row] = await tx

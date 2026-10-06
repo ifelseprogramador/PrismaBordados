@@ -140,6 +140,47 @@ RLS (ver seção RLS abaixo). Uma pessoa pertence a uma organização por vez
 ou da organização "impersonada" quando um platform admin está em modo
 suporte.
 
+### Multiusuário (`core/team/`, `core/module-access.ts`)
+
+Duas camadas de controle:
+
+1. **Dono da plataforma** (`/admin`, card "Usuários"): liga
+   `organizations.multiUser` e define `seatLimit` (pessoas ATIVAS,
+   contando o dono da conta) e `extraSeatPriceCents` (só lembrete, nenhuma
+   cobrança automática lê). Padrão: `multiUser = false`, `seatLimit = 1`
+   — empresa de uma pessoa só, sem tela de equipe.
+2. **Dono da conta** (`role = "owner"`, tela `/equipe`, 404 se
+   `multiUser = false`): convida `staff` (e-mail + setor + módulos),
+   desativa/reativa, edita setor/módulos, reseta senha provisória. Os
+   módulos concedíveis são só os habilitados para a organização
+   (`organization_module_settings`).
+
+Acesso por módulo: `membership_modules` (uma linha por módulo concedido).
+`owner` acessa tudo; `staff` só o que tem linha. `getActiveOrg()` devolve
+`moduleAccess`; **todo módulo de negócio deve chamar
+`requireModule("<slug>")` (`core/auth.ts`) no lugar de `withOrg()`** em
+toda Server Action, página e rota (áreas fora de módulo, como Backup, usam
+`requireOwner()`; o layout de cada módulo usa `<ModuleGuard slug>` só para UX) — o menu esconde o item
+(`filterModulesByAccess`), mas esconder não é proteção.
+
+No banco (`migrations-custom/0009_multiuser_team.sql`): `current_org_ids()`
+ignora membership desativado; o dono da conta só insere/atualiza `staff`
+da própria organização (trigger `restrict_membership_update` impede mudar
+papel/usuário/organização); trigger `enforce_membership_seat_limit` recusa
+convite acima do limite ou sem `multi_user` (trava a linha da organização
+para dois convites simultâneos não passarem pelo último assento);
+`multi_user`/`seat_limit`/`extra_seat_price_cents` só o dono da plataforma
+altera. `/equipe` recusa e-mail que já tem cadastro no Supabase Auth, para
+o dono da conta nunca "adotar" (e resetar a senha de) alguém de outra
+empresa.
+
+No Prisma: `dependsOn` já é usado (pedidos → clientes e catálogo; fiscal →
+pedidos), então liberar um módulo expande a lista (`expandWithDependencies`).
+O Painel (`app/(app)/page.tsx`) busca e mostra só os blocos dos módulos
+liberados; Previsão de caixa exige pedidos E financeiro. Backup e LGPD usam
+`requireOwner()`. Cada pasta de módulo em `app/(app)/` tem um `layout.tsx` com
+`<ModuleGuard slug>` (só UX).
+
 ## RLS (Row-Level Security)
 
 **Migrations custom em SQL puro**, em `src/db/migrations-custom/`,

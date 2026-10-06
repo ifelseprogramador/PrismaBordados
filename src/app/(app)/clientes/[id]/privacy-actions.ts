@@ -9,7 +9,7 @@
  * docs/lgpd-checklist.md.
  */
 import { revalidatePath } from "next/cache";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { recordLgpdAction } from "@/core/audit-log";
 import type { ActionResult } from "@/core/action-result";
 import { getClienteById, deleteCliente, anonymizeCliente } from "@/modules/clientes";
@@ -61,7 +61,7 @@ export interface ExportacaoClienteData {
 export async function exportarDadosCliente(
   clienteId: string,
 ): Promise<ExportacaoClienteData | null> {
-  const { organizationId, userId, withDb } = await withOrg();
+  const { organizationId, userId, withDb } = await requireModule("clientes");
 
   const [cliente, pedidos] = await Promise.all([
     getClienteById(clienteId),

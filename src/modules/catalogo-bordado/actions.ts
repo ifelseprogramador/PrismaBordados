@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
 import { catalogoBordadoItens } from "./schema";
 import { parseCatalogoBordadoItemFormData } from "./validation";
@@ -15,7 +15,7 @@ export async function createCatalogoBordadoItem(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<InsertResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("catalogo-bordado");
 
   const parsed = parseCatalogoBordadoItemFormData(formData);
   if (!parsed.success) {
@@ -42,7 +42,7 @@ export async function updateCatalogoBordadoItem(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("catalogo-bordado");
 
   const parsed = parseCatalogoBordadoItemFormData(formData);
   if (!parsed.success) {
@@ -77,7 +77,7 @@ export async function updateCatalogoBordadoItem(
 }
 
 export async function deleteCatalogoBordadoItem(itemId: string): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("catalogo-bordado");
 
   await withDb((tx) =>
     tx

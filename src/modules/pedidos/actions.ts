@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq, sql } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import type { Database } from "@/core/db";
 import type { ActionResult } from "@/core/action-result";
 import {
@@ -45,7 +45,7 @@ async function recalculateOrderTotal(tx: Database, pedidoId: string) {
 }
 
 export async function createPedidoRecord(data: PedidoCreateInput): Promise<InsertResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("pedidos");
   log.info("pedidos.criar");
 
   return withDb(async (tx) => {
@@ -75,7 +75,7 @@ export async function createPedido(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<InsertResult> {
-  const { log } = await withOrg();
+  const { log } = await requireModule("pedidos");
   const parsed = parsePedidoCreateFormData(formData);
   if (!parsed.success) {
     log.warn("pedidos.criar.validacao_falhou", {
@@ -92,7 +92,7 @@ export async function updatePedidoHeader(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("pedidos");
   log.info("pedidos.atualizar", { pedidoId });
 
   const parsed = parsePedidoHeaderFormData(formData);
@@ -127,7 +127,7 @@ export async function addPedidoItem(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("pedidos");
   log.info("pedidos.item.adicionar", { pedidoId });
 
   const parsed = parsePedidoItemFormData(formData);
@@ -173,7 +173,7 @@ export async function addPedidoItem(
 }
 
 export async function removePedidoItem(itemId: string, pedidoId: string): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("pedidos");
   log.info("pedidos.item.remover", { itemId, pedidoId });
 
   const result = await withDb(async (tx) => {
@@ -215,7 +215,7 @@ export async function registerAdiantamento(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("pedidos");
   log.info("pedidos.adiantamento.registrar", { pedidoId });
 
   const parsed = parseAdiantamentoFormData(formData);
@@ -272,7 +272,7 @@ export async function incrementarAdiantamento(
   pedidoId: string,
   valorCents: number,
 ): Promise<IncrementarAdiantamentoResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("pedidos");
 
   const result = await withDb((tx) =>
     tx
@@ -327,7 +327,7 @@ export async function transitionPedidoStatus(
   pedidoId: string,
   nextStatus: PedidoStatus,
 ): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("pedidos");
   const actionName = STATUS_ACTION_LABEL[nextStatus] ?? "pedidos.transicao";
   log.info(actionName, { pedidoId, nextStatus });
 
@@ -389,7 +389,7 @@ export interface DeletePedidoResult extends ActionResult {
  * módulos, não cabe aqui.
  */
 export async function deletePedido(pedidoId: string): Promise<DeletePedidoResult> {
-  const { organizationId, log, withDb } = await withOrg();
+  const { organizationId, log, withDb } = await requireModule("pedidos");
   log.info("pedidos.apagar", { pedidoId });
 
   const result = await withDb(async (tx) => {

@@ -8,7 +8,7 @@
  * de `fiscal-actions.ts`: cruza módulos.
  */
 import { eq } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { formatCents } from "@/core/money";
 import { formatDate } from "@/core/format";
 import { formatAddressLine } from "@/core/fiscal-fields";
@@ -21,7 +21,7 @@ import { getClienteById } from "@/modules/clientes";
 import { listFiscalNotasByPedido } from "@/modules/fiscal";
 
 async function loadBase(pedidoId: string) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("pedidos");
   const [pedido, itens, [org]] = await Promise.all([
     getPedidoById(pedidoId),
     listPedidoItens(pedidoId),

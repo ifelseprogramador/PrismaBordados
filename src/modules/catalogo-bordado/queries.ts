@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, ilike } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { catalogoBordadoItens } from "./schema";
 
 export const CATALOGO_BORDADO_SORT_OPTIONS = {
@@ -22,7 +22,7 @@ export async function listCatalogoBordadoItens(options?: {
   search?: string;
   sort?: CatalogoBordadoSort;
 }) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("catalogo-bordado");
   const term = options?.search?.trim();
 
   return withDb((tx) =>
@@ -40,7 +40,7 @@ export async function listCatalogoBordadoItens(options?: {
 }
 
 export async function getCatalogoBordadoItemById(id: string) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("catalogo-bordado");
 
   return withDb(async (tx) => {
     const [item] = await tx
@@ -60,7 +60,7 @@ export async function getCatalogoBordadoItemById(id: string) {
 /** Para o autocomplete do item de pedido — só o necessário para
  * pré-preencher (ver `modules/pedidos`). */
 export async function listCatalogoBordadoItensForSelect() {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("catalogo-bordado");
 
   return withDb((tx) =>
     tx

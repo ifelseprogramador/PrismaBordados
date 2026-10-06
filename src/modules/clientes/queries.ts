@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { clientes, clienteEnderecos } from "./schema";
 
 export const CLIENTE_SORT_OPTIONS = {
@@ -19,7 +19,7 @@ const CLIENTE_ORDER_BY = {
 } as const;
 
 export async function listClientes(options?: { search?: string; sort?: ClienteSort }) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("clientes");
   const term = options?.search?.trim();
 
   return withDb((tx) =>
@@ -39,7 +39,7 @@ export async function listClientes(options?: { search?: string; sort?: ClienteSo
 }
 
 export async function getClienteById(id: string) {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("clientes");
 
   return withDb(async (tx) => {
     const [cliente] = await tx
@@ -59,7 +59,7 @@ export async function getClienteById(id: string) {
 
 /** Para selects de outros módulos (ex. `pedidos`) — só id/nome, via barrel. */
 export async function listClientesForSelect() {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("clientes");
 
   return withDb((tx) =>
     tx

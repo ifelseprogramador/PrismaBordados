@@ -1395,3 +1395,25 @@ Sincronizado do BaseERP (ver `base-erp/docs/decisoes.md`, mesma data): cron
 `/api/cron/purge-shared` (`30 6 * * *`, em `vercel.json`) apaga snapshots
 expirados/revogados há mais de 7 dias. Pendência de LGPD fechada em
 `docs/lgpd-checklist.md`.
+
+## 2026-10-06 — Multiusuário por organização (portado do BaseERP)
+
+Mesma decisão do BaseERP (ver `docs/decisoes.md` de lá, 2026-10-05 e 2026-10-06):
+`organizations.multi_user/seat_limit/extra_seat_price_cents`, `membership_modules`,
+tela `/equipe`, card "Usuários" em `/admin`. Migrations: drizzle `0012_multiuser_team`
+e custom `0014_multiuser_team.sql` (conteúdo idêntico ao `0009` do BaseERP — a
+função `restrict_organization_branding_update` do Prisma já era igual, conferido
+por diff). Validado rodando toda a cadeia de migrations (12 drizzle + 15 custom)
+num Postgres em memória e 21 cenários de RLS/triggers.
+
+Específico do Prisma:
+
+- Toda action/query dos 5 módulos usa `requireModule("<slug>")`; rotas de
+  clientes (exportar/modelo) devolvem 403 sem acesso.
+- `registrarPagamentoCliente` toca pedidos e financeiro: exige os dois (falha no
+  primeiro passo, sem lançamento parcial).
+- Painel condicional por módulo; Backup e LGPD só do responsável.
+- `membership_modules` cai por cascade ao apagar a organização/membership
+  (`hardDeleteOrganization` não precisou mudar).
+- Pendente: auditoria de negócio (`created_by`/`updated_by`) e concorrência de
+  edição nos pedidos/financeiro.

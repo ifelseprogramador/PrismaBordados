@@ -14,9 +14,12 @@ import type { ModuleDefinition } from "@/core/registry";
  */
 export function SidebarNav({
   modules,
+  isOwner,
   onNavigate,
 }: {
   modules: ModuleDefinition[];
+  /** Só o responsável pela conta vê o que não é módulo (backup, LGPD). */
+  isOwner: boolean;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -29,8 +32,12 @@ export function SidebarNav({
       href: m.href,
       icon: resolveIcon(m.iconName),
     })),
-    { slug: "backup", label: "Backup", href: "/backup", icon: DatabaseBackup },
-    { slug: "lgpd", label: "Privacidade (LGPD)", href: "/lgpd", icon: ShieldCheck },
+    ...(isOwner
+      ? [
+          { slug: "backup", label: "Backup", href: "/backup", icon: DatabaseBackup },
+          { slug: "lgpd", label: "Privacidade (LGPD)", href: "/lgpd", icon: ShieldCheck },
+        ]
+      : []),
   ];
 
   return (
