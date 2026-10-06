@@ -1468,3 +1468,12 @@ Específico do Prisma: o TTL de 10 min de pedidos pendentes
 problema ("pedido esquecido pendurado") agora resolvido para os dois tipos de
 pedido, e sem encerrar um pedido do admin reaberto sobre uma sessão antiga.
 `domain.ts` e seu teste saíram; a regra equivalente está em `wait.ts`.
+
+## 2026-10-06 — Espelho do suporte: segundo quadro, "Atualizar tela" e caixa arrastável (portado do BaseERP)
+
+Mesma correção do BaseERP (ver `docs/decisoes.md` de lá): o primeiro quadro da
+gravação saía com o aviso de permissão ainda saindo da tela e o viewer descarta os
+eventos anteriores ao quadro buscado, então o aviso ficava preso no espelho do
+suporte. Agora o widget tira um segundo quadro completo após 1,5 s e avisa o viewer
+(`resync`); o botão "Atualizar tela" do admin faz o mesmo sob demanda. A caixa de
+conversa é arrastável (`draggable-panel.tsx`).
