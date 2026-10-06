@@ -21,8 +21,14 @@ const initialState: ActionResult = { ok: false };
  */
 export function PagamentoClienteForm({
   clientesDevendo,
+  idempotencyKey,
 }: {
   clientesDevendo: ClienteComSaldoAReceber[];
+  /** Gerada no SERVIDOR a cada render da página (`crypto.randomUUID()`):
+   * reenviar o mesmo formulário (duplo clique, retry) manda a mesma chave e
+   * não lança o pagamento duas vezes; depois de um sucesso a página
+   * revalida e vem uma chave nova. */
+  idempotencyKey: string;
 }) {
   const [state, formAction, isPending] = useActionState(registrarPagamentoCliente, initialState);
   const errors = state.errors ?? {};
@@ -44,6 +50,7 @@ export function PagamentoClienteForm({
 
   return (
     <form action={formAction} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
       <div className="flex flex-col gap-1">
         <Label htmlFor="clienteId">Cliente</Label>
         <select

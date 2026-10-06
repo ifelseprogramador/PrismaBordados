@@ -17,6 +17,12 @@ export {
   calculateSaldo,
   isAdiantamentoAboveTotal,
 } from "./domain";
+export { parseAdiantamentoFormData } from "./validation";
+export {
+  aplicarAdiantamento,
+  somarAdiantamento,
+  type AplicarAdiantamentoResult,
+} from "./adiantamento-tx";
 export {
   getPedidosDashboardSummary,
   listPedidos,

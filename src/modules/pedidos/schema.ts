@@ -14,6 +14,7 @@ import { sql, relations } from "drizzle-orm";
 import { organizations } from "@/db/schema/tenancy";
 import { clientes } from "@/modules/clientes/schema";
 import { catalogoBordadoItens } from "@/modules/catalogo-bordado/schema";
+import { auditColumns } from "@/db/schema/audit";
 
 /**
  * Orçamento não é uma entidade separada: é um `pedido` com
@@ -51,6 +52,7 @@ export const pedidoCounters = pgTable("pedido_counters", {
 export const pedidos = pgTable(
   "pedidos",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()
@@ -93,6 +95,12 @@ export const pedidos = pgTable(
     readyAt: timestamp("ready_at", { withTimezone: true }),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    // Controle otimista do CABEÇALHO e do ADIANTAMENTO (os dois formulários
+    // da ficha): cada gravação exige a versão que a pessoa viu e soma 1 —
+    // duas pessoas editando ao mesmo tempo não se sobrescrevem em silêncio.
+    // Separado de `updatedAt` de propósito: adicionar um item (que mexe no
+    // total) não deve derrubar a edição de quem está com a tela aberta.
+    headerVersion: integer("header_version").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -107,6 +115,7 @@ export const pedidos = pgTable(
 export const pedidoItens = pgTable(
   "pedido_itens",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     pedidoId: uuid("pedido_id")
       .notNull()

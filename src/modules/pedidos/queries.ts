@@ -322,6 +322,9 @@ export async function getPedidoById(id: string) {
         readyAt: pedidos.readyAt,
         deliveredAt: pedidos.deliveredAt,
         cancelledAt: pedidos.cancelledAt,
+        headerVersion: pedidos.headerVersion,
+        createdBy: pedidos.createdBy,
+        updatedBy: pedidos.updatedBy,
         createdAt: pedidos.createdAt,
         updatedAt: pedidos.updatedAt,
         customerName: clientes.name,
@@ -357,6 +360,8 @@ export async function listPedidoItens(pedidoId: string) {
         quantity: pedidoItens.quantity,
         unitPriceCents: pedidoItens.unitPriceCents,
         totalCents: pedidoItens.totalCents,
+        createdBy: pedidoItens.createdBy,
+        updatedBy: pedidoItens.updatedBy,
         createdAt: pedidoItens.createdAt,
       })
       .from(pedidoItens)

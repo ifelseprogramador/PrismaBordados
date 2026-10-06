@@ -1417,3 +1417,36 @@ Específico do Prisma:
   (`hardDeleteOrganization` não precisou mudar).
 - Pendente: auditoria de negócio (`created_by`/`updated_by`) e concorrência de
   edição nos pedidos/financeiro.
+
+## 2026-10-06 — Auditoria de negócio e concorrência em pedidos/financeiro (portado do BaseERP)
+
+Infra igual à do BaseERP (ver `docs/decisoes.md` de lá): `auditColumns` +
+gatilho `set_audit_columns` em `clientes`, `cliente_enderecos`,
+`catalogo_bordado_itens`, `pedidos`, `pedido_itens`, `financeiro_lancamentos`;
+`status_history` genérica; cartão "Histórico" nas fichas de pedido e cliente.
+Migrations: drizzle `0013_audit_status_history`, custom
+`0015_audit_columns_and_status_history`. Validado no Postgres em memória
+(autoria, versão do pedido, idempotência do lançamento).
+
+Concorrência (`modules/pedidos/actions.ts`):
+
+- `lockPedido()` (`SELECT ... FOR UPDATE`) abre toda mutação do pedido (item,
+  status, cabeçalho): total recalculado nunca perde item gravado ao mesmo tempo;
+  transição valida contra o status travado e grava `status_history`.
+- `pedidos.header_version`: formulário de adiantamento envia a versão que viu;
+  versão velha = recusa. `updatePedidoHeader` confere a versão quando enviada.
+
+Pagamento (corrigia um risco financeiro real):
+
+- `registrarPagamentoCliente` e `registrarRecebimentoPedido` eram DUAS transações
+  (soma do adiantamento + lançamento); falha no meio deixava um sem o outro.
+  Agora uma transação só, com helpers que recebem `tx`
+  (`pedidos/adiantamento-tx.ts`, `financeiro/lancamento-tx.ts`) — arquivos
+  FORA de "use server" de propósito: uma Server Action exportada pode ser chamada
+  do navegador com argumentos forjados, e `tx` nunca pode vir de fora.
+- `financeiro_lancamentos.idempotency_key` (índice único parcial): o formulário
+  de pagamento recebe uma chave gerada no servidor a cada render; reenviar o
+  mesmo envio vira "já registrado" e desfaz a soma do adiantamento. Não protege
+  duas pessoas diferentes pagando o mesmo pedido (são envios distintos).
+- As duas orquestrações exigem acesso a Pedidos E Financeiro; sem Financeiro a
+  pessoa recebe mensagem clara em vez de um recebimento pela metade.

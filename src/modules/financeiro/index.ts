@@ -33,6 +33,7 @@ export {
   deleteLancamento,
   type LancamentoRecordInput,
 } from "./actions";
+export { inserirLancamento, type LancamentoTxInput } from "./lancamento-tx";
 export { LancamentoForm } from "./components/lancamento-form";
 export { LancamentosTable } from "./components/lancamentos-table";
 export { EntradasSaidasChart } from "./components/entradas-saidas-chart";

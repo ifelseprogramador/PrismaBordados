@@ -2,6 +2,7 @@ import { pgTable, pgEnum, uuid, text, timestamp, index, uniqueIndex } from "driz
 import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
 import { organizations } from "@/db/schema/tenancy";
+import { auditColumns } from "@/db/schema/audit";
 
 /** Texto que substitui `name` num cliente anonimizado (`anonymizeCliente`,
  * ver `actions.ts`) — usado tanto ao gravar quanto pela UI para reconhecer
@@ -31,6 +32,7 @@ export const clienteEnderecoKindEnum = pgEnum("cliente_endereco_kind", [
 export const clientes = pgTable(
   "clientes",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()
@@ -70,6 +72,7 @@ export const clientes = pgTable(
 export const clienteEnderecos = pgTable(
   "cliente_enderecos",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()

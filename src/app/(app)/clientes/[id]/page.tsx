@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/back-button";
+import { HistoryCard } from "@/components/history-card";
 import { Badge } from "@/components/ui/badge";
 import { EntityHeader } from "@/components/entity-header";
 import { EmailBadge, PhoneBadge } from "@/components/contact-badges";
@@ -76,6 +77,12 @@ export default async function ClienteDetailPage({ params }: PageProps<"/clientes
           )}
         </CardContent>
       </Card>
+      <HistoryCard
+        createdBy={cliente.createdBy}
+        createdAt={cliente.createdAt}
+        updatedBy={cliente.updatedBy}
+        updatedAt={cliente.updatedAt}
+      />
     </div>
   );
 }

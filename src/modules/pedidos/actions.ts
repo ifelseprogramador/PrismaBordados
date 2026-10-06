@@ -5,12 +5,14 @@ import { and, eq, sql } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
 import type { Database } from "@/core/db";
 import type { ActionResult } from "@/core/action-result";
+import { recordStatusChange } from "@/core/status-history";
 import {
   calculateOrderTotal,
   isAdiantamentoAboveTotal,
   isValidTransition,
   type PedidoStatus,
 } from "./domain";
+import { aplicarAdiantamento, somarAdiantamento } from "./adiantamento-tx";
 import { pedidoCounters, pedidoItens, pedidos } from "./schema";
 import {
   parseAdiantamentoFormData,
@@ -22,6 +24,31 @@ import {
 
 export interface InsertResult extends ActionResult {
   id?: string;
+}
+
+const CONFLICT_MESSAGE =
+  "Este pedido foi alterado por outra pessoa enquanto você editava. Atualize a página e tente de novo.";
+
+/**
+ * Trava a linha do pedido (`SELECT ... FOR UPDATE`) até o fim da transação
+ * e devolve o estado atual. Toda mutação do pedido (cabeçalho, item, status)
+ * começa por aqui: duas pessoas mexendo no mesmo pedido se enfileiram em vez
+ * de se atropelar — a segunda lê o estado já gravado pela primeira (cada
+ * instrução em READ COMMITTED enxerga o que foi confirmado), então o total
+ * recalculado nunca perde um item adicionado ao mesmo tempo.
+ */
+async function lockPedido(tx: Database, pedidoId: string, organizationId: string) {
+  const [pedido] = await tx
+    .select({
+      id: pedidos.id,
+      status: pedidos.status,
+      headerVersion: pedidos.headerVersion,
+    })
+    .from(pedidos)
+    .where(and(eq(pedidos.id, pedidoId), eq(pedidos.organizationId, organizationId)))
+    .limit(1)
+    .for("update");
+  return pedido ?? null;
 }
 
 /** Recalcula e grava o total do pedido a partir dos itens atuais —
@@ -45,7 +72,7 @@ async function recalculateOrderTotal(tx: Database, pedidoId: string) {
 }
 
 export async function createPedidoRecord(data: PedidoCreateInput): Promise<InsertResult> {
-  const { organizationId, log, withDb } = await requireModule("pedidos");
+  const { organizationId, userId, log, withDb } = await requireModule("pedidos");
   log.info("pedidos.criar");
 
   return withDb(async (tx) => {
@@ -65,6 +92,15 @@ export async function createPedidoRecord(data: PedidoCreateInput): Promise<Inser
       .insert(pedidos)
       .values({ ...data, organizationId, number: lastNumber })
       .returning({ id: pedidos.id });
+
+    await recordStatusChange(tx, {
+      organizationId,
+      userId,
+      entityTable: "pedidos",
+      entityId: pedido.id,
+      fromStatus: null,
+      toStatus: "orcamento",
+    });
 
     log.info("pedidos.criar.sucesso", { pedidoId: pedido.id, number: lastNumber });
     return { ok: true, id: pedido.id };
@@ -104,17 +140,36 @@ export async function updatePedidoHeader(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const result = await withDb((tx) =>
-    tx
-      .update(pedidos)
-      .set({ ...parsed.data, updatedAt: new Date() })
-      .where(and(eq(pedidos.id, pedidoId), eq(pedidos.organizationId, organizationId)))
-      .returning({ id: pedidos.id }),
-  );
+  // Versão que a pessoa estava vendo (campo oculto `headerVersion`). Quando
+  // o formulário a envia, conflito de edição simultânea é detectado.
+  const rawVersion = formData.get("headerVersion");
+  const expectedVersion = rawVersion === null || rawVersion === "" ? null : Number(rawVersion);
 
-  if (result.length === 0) {
+  const outcome = await withDb(async (tx) => {
+    const pedido = await lockPedido(tx, pedidoId, organizationId);
+    if (!pedido) return "not_found" as const;
+    if (expectedVersion !== null && pedido.headerVersion !== expectedVersion) {
+      return "conflict" as const;
+    }
+
+    await tx
+      .update(pedidos)
+      .set({
+        ...parsed.data,
+        headerVersion: sql`${pedidos.headerVersion} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(pedidos.id, pedidoId));
+    return "ok" as const;
+  });
+
+  if (outcome === "not_found") {
     log.warn("pedidos.atualizar.nao_encontrado", { pedidoId });
     return { ok: false, message: "Pedido não encontrado." };
+  }
+  if (outcome === "conflict") {
+    log.warn("pedidos.atualizar.conflito", { pedidoId });
+    return { ok: false, message: CONFLICT_MESSAGE };
   }
 
   log.info("pedidos.atualizar.sucesso", { pedidoId });
@@ -140,11 +195,7 @@ export async function addPedidoItem(
   }
 
   const result = await withDb(async (tx) => {
-    const [pedido] = await tx
-      .select({ id: pedidos.id })
-      .from(pedidos)
-      .where(and(eq(pedidos.id, pedidoId), eq(pedidos.organizationId, organizationId)))
-      .limit(1);
+    const pedido = await lockPedido(tx, pedidoId, organizationId);
     if (!pedido) return null;
 
     await tx.insert(pedidoItens).values({
@@ -177,11 +228,7 @@ export async function removePedidoItem(itemId: string, pedidoId: string): Promis
   log.info("pedidos.item.remover", { itemId, pedidoId });
 
   const result = await withDb(async (tx) => {
-    const [pedido] = await tx
-      .select({ id: pedidos.id })
-      .from(pedidos)
-      .where(and(eq(pedidos.id, pedidoId), eq(pedidos.organizationId, organizationId)))
-      .limit(1);
+    const pedido = await lockPedido(tx, pedidoId, organizationId);
     if (!pedido) return null;
 
     await tx
@@ -227,23 +274,32 @@ export async function registerAdiantamento(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
+  const rawVersion = formData.get("headerVersion");
+  const expectedVersion =
+    rawVersion === null || rawVersion === "" ? Number.NaN : Number(rawVersion);
+  if (!Number.isInteger(expectedVersion) || expectedVersion < 0) {
+    return { ok: false, message: "Não foi possível salvar. Atualize a página e tente de novo." };
+  }
+
   const result = await withDb((tx) =>
-    tx
-      .update(pedidos)
-      .set({
-        adiantamentoCents: parsed.data.adiantamentoCents,
-        paymentDueDate: parsed.data.paymentDueDate ?? null,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(pedidos.id, pedidoId), eq(pedidos.organizationId, organizationId)))
-      .returning({ id: pedidos.id, totalCents: pedidos.totalCents }),
+    aplicarAdiantamento(tx, {
+      organizationId,
+      pedidoId,
+      adiantamentoCents: parsed.data.adiantamentoCents,
+      paymentDueDate: parsed.data.paymentDueDate ?? null,
+      expectedVersion,
+    }),
   );
 
-  const [pedido] = result;
-  if (!pedido) {
+  if (result.kind === "not_found") {
     log.warn("pedidos.adiantamento.nao_encontrado", { pedidoId });
     return { ok: false, message: "Pedido não encontrado." };
   }
+  if (result.kind === "conflict") {
+    log.warn("pedidos.adiantamento.conflito", { pedidoId });
+    return { ok: false, message: CONFLICT_MESSAGE };
+  }
+  const pedido = { totalCents: result.totalCents };
 
   if (isAdiantamentoAboveTotal(pedido.totalCents, parsed.data.adiantamentoCents)) {
     log.warn("pedidos.adiantamento.acima_do_total", { pedidoId });
@@ -274,22 +330,9 @@ export async function incrementarAdiantamento(
 ): Promise<IncrementarAdiantamentoResult> {
   const { organizationId, log, withDb } = await requireModule("pedidos");
 
-  const result = await withDb((tx) =>
-    tx
-      .update(pedidos)
-      .set({
-        adiantamentoCents: sql`${pedidos.adiantamentoCents} + ${valorCents}`,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(pedidos.id, pedidoId), eq(pedidos.organizationId, organizationId)))
-      .returning({
-        id: pedidos.id,
-        adiantamentoCents: pedidos.adiantamentoCents,
-        saldoCents: pedidos.saldoCents,
-      }),
+  const pedido = await withDb((tx) =>
+    somarAdiantamento(tx, { organizationId, pedidoId, valorCents }),
   );
-
-  const [pedido] = result;
   if (!pedido) {
     log.warn("pedidos.adiantamento.incrementar.nao_encontrado", { pedidoId });
     return { ok: false, message: "Pedido não encontrado." };
@@ -327,16 +370,15 @@ export async function transitionPedidoStatus(
   pedidoId: string,
   nextStatus: PedidoStatus,
 ): Promise<ActionResult> {
-  const { organizationId, log, withDb } = await requireModule("pedidos");
+  const { organizationId, userId, log, withDb } = await requireModule("pedidos");
   const actionName = STATUS_ACTION_LABEL[nextStatus] ?? "pedidos.transicao";
   log.info(actionName, { pedidoId, nextStatus });
 
   const result = await withDb(async (tx) => {
-    const [pedido] = await tx
-      .select({ id: pedidos.id, status: pedidos.status })
-      .from(pedidos)
-      .where(and(eq(pedidos.id, pedidoId), eq(pedidos.organizationId, organizationId)))
-      .limit(1);
+    // Linha travada: se outra pessoa está mudando o status (ou mexendo em
+    // item) deste mesmo pedido, esperamos ela terminar e validamos a
+    // transição contra o status que ficou — nunca contra um status velho.
+    const pedido = await lockPedido(tx, pedidoId, organizationId);
     if (!pedido) return { kind: "not_found" as const };
 
     if (!isValidTransition(pedido.status, nextStatus)) {
@@ -352,6 +394,15 @@ export async function transitionPedidoStatus(
         ...(timestampField && { [timestampField]: new Date() }),
       })
       .where(eq(pedidos.id, pedidoId));
+
+    await recordStatusChange(tx, {
+      organizationId,
+      userId,
+      entityTable: "pedidos",
+      entityId: pedidoId,
+      fromStatus: pedido.status,
+      toStatus: nextStatus,
+    });
 
     return { kind: "ok" as const };
   });

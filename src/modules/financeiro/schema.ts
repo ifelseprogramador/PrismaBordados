@@ -1,6 +1,17 @@
-import { pgTable, pgEnum, uuid, text, integer, date, timestamp, index } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import {
+  pgTable,
+  pgEnum,
+  uuid,
+  text,
+  integer,
+  date,
+  timestamp,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
 import { organizations } from "@/db/schema/tenancy";
+import { auditColumns } from "@/db/schema/audit";
 
 export const financeiroLancamentoTypeEnum = pgEnum("financeiro_lancamento_type", [
   "entrada",
@@ -36,6 +47,7 @@ export const financeiroLancamentoReferenceTypeEnum = pgEnum(
 export const financeiroLancamentos = pgTable(
   "financeiro_lancamentos",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()
@@ -50,6 +62,12 @@ export const financeiroLancamentos = pgTable(
     // "manual" para lançamentos digitados diretamente aqui.
     referenceType: financeiroLancamentoReferenceTypeEnum("reference_type"),
     referenceId: uuid("reference_id"),
+    // Chave de idempotência do formulário que criou o lançamento (gerada
+    // no navegador, uma por abertura do formulário): reenviar o MESMO
+    // formulário (duplo clique, duas abas, retry) não lança duas vezes. Só
+    // vale para lançamentos criados pelo fluxo de pagamento de cliente;
+    // nulo nos demais.
+    idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -57,6 +75,9 @@ export const financeiroLancamentos = pgTable(
     index("financeiro_lancamentos_organization_id_idx").on(table.organizationId),
     index("financeiro_lancamentos_org_date_idx").on(table.organizationId, table.date),
     index("financeiro_lancamentos_reference_idx").on(table.referenceType, table.referenceId),
+    uniqueIndex("financeiro_lancamentos_org_idempotency_unique")
+      .on(table.organizationId, table.idempotencyKey)
+      .where(sql`idempotency_key is not null`),
   ],
 );
 

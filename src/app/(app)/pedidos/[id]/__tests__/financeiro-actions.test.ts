@@ -1,62 +1,82 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 /**
- * A orquestração pedidos↔financeiro (`../financeiro-actions.ts`) chama os
- * dois barrels de módulo — testamos aqui SEM banco, mockando
- * `@/modules/pedidos` e `@/modules/financeiro`, porque este ambiente não
- * tem Postgres disponível (ver docs/decisoes.md). O que importa provar:
+ * A orquestração pedidos↔financeiro (`../financeiro-actions.ts`) grava o
+ * adiantamento e o lançamento na MESMA transação — testamos aqui SEM banco,
+ * mockando `@/core/auth` e os dois barrels de módulo (este ambiente não tem
+ * Postgres). O que importa provar:
  * (1) um recebimento novo cria exatamente um lançamento de `entrada` no
- * valor da DIFERENÇA (não do agregado); (2) a categoria vira
- * `saldo_recebido` quando o pedido fica com saldo zerado, e
- * `adiantamento` caso contrário; (3) se `registerAdiantamento` falhar
- * (validação), nenhum lançamento é criado.
+ *     valor da DIFERENÇA (não do agregado), na MESMA `tx` do adiantamento;
+ * (2) a categoria vira `saldo_recebido` quando o saldo zera, `adiantamento`
+ *     caso contrário;
+ * (3) recebido agora = 0, conflito de versão, pedido inexistente e falta de
+ *     acesso ao Financeiro não criam lançamento nenhum.
  */
+const TX = { tx: true };
+const aplicarAdiantamento = vi.fn();
 const getPedidoById = vi.fn();
-const registerAdiantamento = vi.fn();
-const createLancamentoRecord = vi.fn();
+const inserirLancamento = vi.fn();
+const requireModule = vi.fn();
+
+class ModuleAccessDeniedError extends Error {}
+
+vi.mock("@/core/auth", () => ({
+  ModuleAccessDeniedError,
+  requireModule: (...args: unknown[]) => requireModule(...args),
+}));
 
 vi.mock("@/modules/pedidos", () => ({
   getPedidoById: (...args: unknown[]) => getPedidoById(...args),
-  registerAdiantamento: (...args: unknown[]) => registerAdiantamento(...args),
+  aplicarAdiantamento: (...args: unknown[]) => aplicarAdiantamento(...args),
+  parseAdiantamentoFormData: () => ({
+    success: true,
+    data: { adiantamentoCents: 4000, paymentDueDate: undefined },
+  }),
 }));
 
 vi.mock("@/modules/financeiro", () => ({
-  createLancamentoRecord: (...args: unknown[]) => createLancamentoRecord(...args),
+  inserirLancamento: (...args: unknown[]) => inserirLancamento(...args),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const { registrarRecebimentoPedido } = await import("../financeiro-actions");
 
+function formWithVersion(version = "3") {
+  const fd = new FormData();
+  fd.set("headerVersion", version);
+  return fd;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  requireModule.mockImplementation(async () => ({
+    organizationId: "org1",
+    log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    withDb: (fn: (tx: unknown) => unknown) => fn(TX),
+  }));
+  getPedidoById.mockResolvedValue({ id: "p1", number: 10, customerName: "Maria" });
 });
 
-describe("registrarRecebimentoPedido", () => {
-  it("cria um lançamento de entrada 'adiantamento' pela diferença recebida", async () => {
-    getPedidoById
-      .mockResolvedValueOnce({
-        id: "p1",
-        number: 10,
-        customerName: "Maria",
-        adiantamentoCents: 1000,
-        saldoCents: 9000,
-      })
-      .mockResolvedValueOnce({
-        id: "p1",
-        number: 10,
-        customerName: "Maria",
-        adiantamentoCents: 4000,
-        saldoCents: 6000,
-      });
-    registerAdiantamento.mockResolvedValue({ ok: true });
+function aplicado(beforeCents: number, afterCents: number, saldoCents: number) {
+  return { kind: "ok", beforeCents, afterCents, totalCents: 10000, saldoCents, number: 10 };
+}
 
-    const formData = new FormData();
-    const result = await registrarRecebimentoPedido("p1", { ok: false }, formData);
+describe("registrarRecebimentoPedido", () => {
+  it("cria um lançamento 'adiantamento' pela diferença, na mesma transação", async () => {
+    aplicarAdiantamento.mockResolvedValue(aplicado(1000, 4000, 6000));
+
+    const result = await registrarRecebimentoPedido("p1", { ok: false }, formWithVersion());
 
     expect(result).toEqual({ ok: true });
-    expect(createLancamentoRecord).toHaveBeenCalledTimes(1);
-    expect(createLancamentoRecord).toHaveBeenCalledWith(
+    expect(aplicarAdiantamento).toHaveBeenCalledWith(
+      TX,
+      expect.objectContaining({ pedidoId: "p1", adiantamentoCents: 4000, expectedVersion: 3 }),
+    );
+    expect(inserirLancamento).toHaveBeenCalledTimes(1);
+    expect(inserirLancamento).toHaveBeenCalledWith(
+      TX,
+      "org1",
       expect.objectContaining({
         type: "entrada",
         categoria: "adiantamento",
@@ -67,54 +87,69 @@ describe("registrarRecebimentoPedido", () => {
     );
   });
 
-  it("usa a categoria 'saldo_recebido' quando o recebimento zera o saldo", async () => {
-    getPedidoById
-      .mockResolvedValueOnce({
-        id: "p1",
-        number: 10,
-        customerName: "Maria",
-        adiantamentoCents: 5000,
-        saldoCents: 5000,
-      })
-      .mockResolvedValueOnce({
-        id: "p1",
-        number: 10,
-        customerName: "Maria",
-        adiantamentoCents: 10000,
-        saldoCents: 0,
-      });
-    registerAdiantamento.mockResolvedValue({ ok: true });
+  it("usa 'saldo_recebido' quando o recebimento zera o saldo", async () => {
+    aplicarAdiantamento.mockResolvedValue(aplicado(5000, 10000, 0));
 
-    await registrarRecebimentoPedido("p1", { ok: false }, new FormData());
+    await registrarRecebimentoPedido("p1", { ok: false }, formWithVersion());
 
-    expect(createLancamentoRecord).toHaveBeenCalledWith(
+    expect(inserirLancamento).toHaveBeenCalledWith(
+      TX,
+      "org1",
       expect.objectContaining({ categoria: "saldo_recebido", amountCents: 5000 }),
     );
   });
 
-  it("não cria lançamento quando registerAdiantamento falha (validação)", async () => {
-    getPedidoById.mockResolvedValueOnce({
-      id: "p1",
-      number: 10,
-      customerName: "Maria",
-      adiantamentoCents: 1000,
-      saldoCents: 9000,
-    });
-    registerAdiantamento.mockResolvedValue({ ok: false, message: "inválido" });
+  it("não cria lançamento quando nada novo foi recebido", async () => {
+    aplicarAdiantamento.mockResolvedValue(aplicado(4000, 4000, 6000));
 
-    const result = await registrarRecebimentoPedido("p1", { ok: false }, new FormData());
+    const result = await registrarRecebimentoPedido("p1", { ok: false }, formWithVersion());
+
+    expect(result.ok).toBe(true);
+    expect(inserirLancamento).not.toHaveBeenCalled();
+  });
+
+  it("recusa com aviso quando outra pessoa alterou o pedido (conflito de versão)", async () => {
+    aplicarAdiantamento.mockResolvedValue({ kind: "conflict" });
+
+    const result = await registrarRecebimentoPedido("p1", { ok: false }, formWithVersion());
 
     expect(result.ok).toBe(false);
-    expect(createLancamentoRecord).not.toHaveBeenCalled();
+    expect(result.message).toMatch(/outra pessoa/);
+    expect(inserirLancamento).not.toHaveBeenCalled();
   });
 
   it("não cria lançamento quando o pedido não existe", async () => {
-    getPedidoById.mockResolvedValueOnce(null);
+    getPedidoById.mockResolvedValue(null);
 
-    const result = await registrarRecebimentoPedido("inexistente", { ok: false }, new FormData());
+    const result = await registrarRecebimentoPedido("x", { ok: false }, formWithVersion());
 
     expect(result).toEqual({ ok: false, message: "Pedido não encontrado." });
-    expect(registerAdiantamento).not.toHaveBeenCalled();
-    expect(createLancamentoRecord).not.toHaveBeenCalled();
+    expect(aplicarAdiantamento).not.toHaveBeenCalled();
+    expect(inserirLancamento).not.toHaveBeenCalled();
+  });
+
+  it("pede para atualizar a página quando o formulário não traz a versão", async () => {
+    const result = await registrarRecebimentoPedido("p1", { ok: false }, new FormData());
+
+    expect(result.ok).toBe(false);
+    expect(aplicarAdiantamento).not.toHaveBeenCalled();
+  });
+
+  it("sem acesso ao Financeiro: mensagem clara e nada gravado", async () => {
+    requireModule.mockImplementation(async (slug: string) => {
+      if (slug === "financeiro") throw new ModuleAccessDeniedError();
+      return {
+        organizationId: "org1",
+        log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+        withDb: (fn: (tx: unknown) => unknown) => fn(TX),
+      };
+    });
+
+    const result = await registrarRecebimentoPedido("p1", { ok: false }, formWithVersion());
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/Financeiro/);
+    expect(aplicarAdiantamento).not.toHaveBeenCalled();
+    expect(inserirLancamento).not.toHaveBeenCalled();
   });
 });

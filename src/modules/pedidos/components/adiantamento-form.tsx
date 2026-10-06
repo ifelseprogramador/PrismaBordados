@@ -36,11 +36,15 @@ type BoundAction = (prevState: ActionResult, formData: FormData) => Promise<Acti
 export function AdiantamentoForm({
   pedidoId,
   adiantamentoCents,
+  headerVersion,
   paymentDueDate,
   action,
 }: {
   pedidoId: string;
   adiantamentoCents: number;
+  /** Versão do pedido que esta tela está vendo (`pedidos.headerVersion`) —
+   * enviada junto; se outra pessoa mexeu antes, a gravação é recusada. */
+  headerVersion: number;
   /** Vencimento atual do saldo, se já definido (`YYYY-MM-DD`, formato de
    * `<input type="date">`) — editável junto do adiantamento, ver
    * `schema.ts#paymentDueDate`. */
@@ -53,6 +57,7 @@ export function AdiantamentoForm({
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-2">
+      <input type="hidden" name="headerVersion" value={headerVersion} />
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-1.5">
           <Label htmlFor="adiantamento">Adiantamento recebido (total)</Label>

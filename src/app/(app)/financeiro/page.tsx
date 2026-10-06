@@ -66,7 +66,10 @@ export default async function FinanceiroPage({ searchParams }: PageProps<"/finan
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PagamentoClienteForm clientesDevendo={clientesDevendo} />
+          <PagamentoClienteForm
+            clientesDevendo={clientesDevendo}
+            idempotencyKey={crypto.randomUUID()}
+          />
         </CardContent>
       </Card>
 

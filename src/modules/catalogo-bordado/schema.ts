@@ -1,6 +1,7 @@
 import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { organizations } from "@/db/schema/tenancy";
+import { auditColumns } from "@/db/schema/audit";
 
 /**
  * Catálogo de itens do vertical bordados — específico deste ramo (nome
@@ -12,6 +13,7 @@ import { organizations } from "@/db/schema/tenancy";
 export const catalogoBordadoItens = pgTable(
   "catalogo_bordado_itens",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()

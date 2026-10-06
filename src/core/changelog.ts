@@ -24,6 +24,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.10.0",
+    date: "2026-10-06",
+    changes: [
+      {
+        type: "novo",
+        text: 'Em empresas com vários usuários, a ficha do pedido e do cliente mostra "Histórico": quem criou, quem alterou por último e, no pedido, quem mudou cada status e quando.',
+      },
+      {
+        type: "melhoria",
+        text: "Duas pessoas mexendo no mesmo pedido ao mesmo tempo não se atrapalham mais: itens e total ficam certos, e registrar recebimento de um pedido que outra pessoa acabou de alterar avisa para atualizar a página em vez de sobrescrever.",
+      },
+      {
+        type: "correcao",
+        text: "Registrar um pagamento agora grava o recebimento do pedido e o lançamento no Financeiro de uma vez só — nunca um sem o outro — e clicar duas vezes (ou reenviar) não lança o pagamento em dobro.",
+      },
+    ],
+  },
+  {
     version: "0.9.0",
     date: "2026-10-06",
     changes: [

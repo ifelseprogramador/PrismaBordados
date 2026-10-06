@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Printer } from "lucide-react";
 import { BackButton } from "@/components/back-button";
+import { HistoryCard } from "@/components/history-card";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,10 @@ import { formatCents } from "@/core/money";
 import { formatDate } from "@/core/format";
 import { getPedidoById, listPedidoItens } from "@/modules/pedidos/queries";
 import { listCatalogoBordadoItensForSelect } from "@/modules/catalogo-bordado/queries";
-import { PedidoStatusBadge } from "@/modules/pedidos/components/pedido-status-badge";
+import {
+  PEDIDO_STATUS_LABELS,
+  PedidoStatusBadge,
+} from "@/modules/pedidos/components/pedido-status-badge";
 import { PedidoStatusActions } from "@/modules/pedidos/components/pedido-status-actions";
 import { PedidoItensTable } from "@/modules/pedidos/components/pedido-itens-table";
 import { PedidoItemForm } from "@/modules/pedidos/components/pedido-item-form";
@@ -126,6 +130,7 @@ export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[
             key={pedido.updatedAt.toString()}
             pedidoId={pedido.id}
             adiantamentoCents={pedido.adiantamentoCents}
+            headerVersion={pedido.headerVersion}
             paymentDueDate={pedido.paymentDueDate}
             action={registrarRecebimentoPedido.bind(null, pedido.id)}
           />
@@ -169,6 +174,16 @@ export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[
           )}
         </CardContent>
       </Card>
+
+      <HistoryCard
+        entityTable="pedidos"
+        entityId={pedido.id}
+        labels={PEDIDO_STATUS_LABELS}
+        createdBy={pedido.createdBy}
+        createdAt={pedido.createdAt}
+        updatedBy={pedido.updatedBy}
+        updatedAt={pedido.updatedAt}
+      />
     </div>
   );
 }
