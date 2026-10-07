@@ -1490,3 +1490,14 @@ botão de silenciar e contador de não lidas. Cada mensagem avisa uma vez.
 Mesma mudança do BaseERP (ver `docs/decisoes.md` de lá): alças nos cantos do
 `DraggablePanel` (mouse, toque e teclado) e `sendTelegramMessageDetailed` +
 botão "Enviar mensagem de teste" no `/admin`.
+
+## 2026-10-07 — Suporte: conversa pelo Telegram e espera por organização (portado do BaseERP)
+
+Mesma decisão do BaseERP (ver `docs/decisoes.md` de lá): sessão em modo conversa
+por texto (`chat`) que o dono abre respondendo ao alerta no Telegram e que vira
+`active` (mesma sessão, mesmo histórico) quando a pessoa libera a tela; webhook
+`/api/telegram/webhook` (segredo em tempo constante, só o chat do dono);
+espera por atendimento em `organizations.support_wait_seconds`; e `/api/cron/` +
+webhook em `PUBLIC_PATHS` do proxy (o cron, incluindo o backup diário, era
+redirecionado ao login). Migrations: drizzle `0015_support_telegram_chat`,
+custom `0017_support_telegram_chat`. Validado no Postgres em memória (17 cenários).
