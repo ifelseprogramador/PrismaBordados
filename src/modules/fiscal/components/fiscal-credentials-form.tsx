@@ -183,7 +183,7 @@ export function FiscalCredentialsForm({ summary }: { summary: FiscalCredentialsS
   );
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form data-unsaved-guard action={formAction} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         {field("providerSlug", "Provedor de emissão", {
           placeholder: "Nenhum configurado ainda",

@@ -99,7 +99,12 @@ export function CatalogoItemForm({
   }
 
   return (
-    <form key={item?.updatedAt?.toString()} action={formAction} className="flex flex-col gap-4">
+    <form
+      data-unsaved-guard
+      key={item?.updatedAt?.toString()}
+      action={formAction}
+      className="flex flex-col gap-4"
+    >
       {field("tipoProduto", "Tipo de produto", { placeholder: "ex.: toalha, camiseta" })}
       {field("modeloPadrao", "Modelo padrão (opcional)")}
       {field("tamanhosAceitos", "Tamanhos aceitos (separados por vírgula)", {

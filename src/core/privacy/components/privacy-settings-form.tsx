@@ -29,7 +29,7 @@ export function PrivacySettingsForm({ settings }: { settings: PrivacySettings })
   }, [state.ok]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form data-unsaved-guard action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="legalName">Razão social</Label>
         <Input id="legalName" name="legalName" defaultValue={settings.legalName} />

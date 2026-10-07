@@ -21,7 +21,7 @@ export function LancamentoForm() {
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <form action={formAction} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <form data-unsaved-guard action={formAction} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <div className="flex flex-col gap-1">
         <Label htmlFor="type">Tipo</Label>
         <select

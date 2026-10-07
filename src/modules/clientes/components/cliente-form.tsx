@@ -178,7 +178,12 @@ export function ClienteForm({
 
   return (
     // key nova a cada salvamento: remonta com os dados frescos do servidor.
-    <form key={cliente?.updatedAt?.toString()} action={formAction} className="flex flex-col gap-4">
+    <form
+      data-unsaved-guard
+      key={cliente?.updatedAt?.toString()}
+      action={formAction}
+      className="flex flex-col gap-4"
+    >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="type">Tipo de cliente</Label>
         <select

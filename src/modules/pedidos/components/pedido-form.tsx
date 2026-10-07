@@ -37,7 +37,7 @@ export function PedidoForm({
   }, [state, router]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form data-unsaved-guard action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="customerId">Cliente</Label>
         <select
