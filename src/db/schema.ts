@@ -24,3 +24,4 @@ export * from "@/modules/pedidos/schema";
 export * from "@/modules/financeiro/schema";
 export * from "@/modules/fiscal/schema";
 export * from "./schema/sharing";
+export * from "./schema/login-history";
