@@ -1525,3 +1525,10 @@ repassa o texto como "apagar N + escrever X". Também `<body suppressHydrationWa
 Mesma correção do BaseERP (ver `docs/decisoes.md` de lá): barras de controle com
 `flex-wrap`, texto longo com `min-w-0`, cartões fixos com `max-w-[calc(100vw-2rem)]` e
 cabeçalho da caixa de conversa com título que trunca. Testes de estrutura incluídos.
+
+## 2026-10-07 — Controle remoto pelo celular: teclado só em campo, texto existente e rolagem (portado do BaseERP)
+
+Mesma mudança do BaseERP (ver `docs/decisoes.md` de lá): o teclado só abre ao tocar num
+campo de texto (lido no iframe do espelho por `remote-field.ts`); o campo de digitação
+começa com o texto que o campo remoto já tem (dá para apagar) e tem "Limpar campo"; arrastar
+o dedo no espelho rola a página da pessoa (÷ zoom), com botões de rolar.
