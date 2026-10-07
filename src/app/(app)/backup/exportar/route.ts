@@ -1,6 +1,6 @@
 import "@/core/load-modules"; // Route Handlers não passam pelo layout.tsx — importar aqui garante que registerBackupTable de cada módulo já rodou antes de buildOrgBackup iterar sobre BACKUP_TABLES.
 import { ModuleAccessDeniedError, getActiveOrg, requireOwner } from "@/core/auth";
-import { buildOrgBackup } from "@/core/backup";
+import { buildOrgBackup, markBackupDownloaded } from "@/core/backup";
 
 /**
  * Backup completo da organização em JSON — estrutura (colunas + tipos,
@@ -17,9 +17,13 @@ export async function GET() {
   const [{ log, withDb }, activeOrg] = access;
   log.info("backup.exportar");
 
-  const backup = await withDb((tx) =>
-    buildOrgBackup(tx, activeOrg.organizationId, activeOrg.organizationName),
-  );
+  const backup = await withDb(async (tx) => {
+    const built = await buildOrgBackup(tx, activeOrg.organizationId, activeOrg.organizationName);
+    // Zera o lembrete — mas não quando é o dono da plataforma no modo suporte: o
+    // backup que ele baixa não é o do responsável da organização.
+    if (!activeOrg.impersonating) await markBackupDownloaded(tx, activeOrg.organizationId);
+    return built;
+  });
 
   const filename = `baseerp-backup-${activeOrg.organizationName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.json`;
 
