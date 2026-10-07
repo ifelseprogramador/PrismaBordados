@@ -1519,3 +1519,9 @@ espelho (abria o teclado no celular) e um intervalo de 100 ms o desfocava (fecha
 agora `triggerFocus: false`, sem o intervalo, e um campo "Digitar na tela da pessoa" que
 repassa o texto como "apagar N + escrever X". Também `<body suppressHydrationWarning>`
 (extensões do navegador alteram o body antes do React assumir).
+
+## 2026-10-07 — Suporte ao vivo em celular em pé: controles que estouravam a tela (portado do BaseERP)
+
+Mesma correção do BaseERP (ver `docs/decisoes.md` de lá): barras de controle com
+`flex-wrap`, texto longo com `min-w-0`, cartões fixos com `max-w-[calc(100vw-2rem)]` e
+cabeçalho da caixa de conversa com título que trunca. Testes de estrutura incluídos.
