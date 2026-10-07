@@ -1511,3 +1511,11 @@ ngrok o JavaScript não assumia); "Enviar mensagem" (sem pedir a tela), "Encerra
 "Cancelar pedido de tela"; `chat-service.ts` único para o painel e o Telegram; aviso de
 mensagem da pessoa em qualquer página do `/admin`, com o Telegram só quando nenhum admin
 está online. Sem migration nova.
+
+## 2026-10-07 — Controle remoto pelo celular do dono: teclado que sumia (portado do BaseERP)
+
+Mesma correção do BaseERP (ver `docs/decisoes.md` de lá): o replay focava o iframe do
+espelho (abria o teclado no celular) e um intervalo de 100 ms o desfocava (fechava);
+agora `triggerFocus: false`, sem o intervalo, e um campo "Digitar na tela da pessoa" que
+repassa o texto como "apagar N + escrever X". Também `<body suppressHydrationWarning>`
+(extensões do navegador alteram o body antes do React assumir).
