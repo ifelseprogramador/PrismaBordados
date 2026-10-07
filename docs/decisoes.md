@@ -1484,3 +1484,9 @@ Mesma mudança do BaseERP (ver `docs/decisoes.md` de lá): `SupportChatPanel` un
 a conversa do usuário e do admin — caixa flutuante arrastável que recolhe, aviso
 sonoro (Web Audio) de mensagem nova, título da aba piscando em segundo plano,
 botão de silenciar e contador de não lidas. Cada mensagem avisa uma vez.
+
+## 2026-10-06 — Caixa de conversa redimensionável e teste do Telegram (portado do BaseERP)
+
+Mesma mudança do BaseERP (ver `docs/decisoes.md` de lá): alças nos cantos do
+`DraggablePanel` (mouse, toque e teclado) e `sendTelegramMessageDetailed` +
+botão "Enviar mensagem de teste" no `/admin`.
