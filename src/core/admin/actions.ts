@@ -568,18 +568,33 @@ export async function deleteLoginEvent(eventId: string): Promise<ActionResult> {
   }
 }
 
-/** Apaga todo o histórico de acessos. */
-export async function clearLoginEvents(): Promise<ActionResult> {
+/**
+ * Apaga o histórico de acessos: todo ele, ou — com `organizationId` — só o de quem é
+ * membro dessa organização.
+ */
+export async function clearLoginEvents(organizationId?: string): Promise<ActionResult> {
   const { log, withDb } = await requireAdmin();
 
   try {
-    // `where true`: o drizzle exige uma condição explícita em delete em massa.
-    await withDb((db) => db.delete(loginEvents).where(sql`true`));
-    log.info("admin.acessos.limpar");
-    revalidatePath("/admin");
+    await withDb((db) =>
+      db.delete(loginEvents).where(
+        organizationId
+          ? inArray(
+              loginEvents.userId,
+              db
+                .select({ id: memberships.userId })
+                .from(memberships)
+                .where(eq(memberships.organizationId, organizationId)),
+            )
+          : // `where true`: o drizzle exige uma condição explícita em delete em massa.
+            sql`true`,
+      ),
+    );
+    log.info("admin.acessos.limpar", { organizationId });
+    revalidatePath(organizationId ? `/admin/organizacoes/${organizationId}` : "/admin");
     return { ok: true };
   } catch (err) {
-    log.error("admin.acessos.limpar.falhou", { err });
+    log.error("admin.acessos.limpar.falhou", { organizationId, err });
     return { ok: false, message: "Não foi possível limpar o histórico. Tente novamente." };
   }
 }

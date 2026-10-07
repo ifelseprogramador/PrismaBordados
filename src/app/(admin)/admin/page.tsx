@@ -61,8 +61,6 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
 
       <LoginHistoryCard entries={loginEvents} />
 
-      <LoginHistoryCard entries={loginEvents} />
-
       <SearchBox placeholder="Buscar organização..." />
 
       <Table>
