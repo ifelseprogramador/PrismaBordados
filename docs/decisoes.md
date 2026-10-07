@@ -1501,3 +1501,13 @@ espera por atendimento em `organizations.support_wait_seconds`; e `/api/cron/` +
 webhook em `PUBLIC_PATHS` do proxy (o cron, incluindo o backup diário, era
 redirecionado ao login). Migrations: drizzle `0015_support_telegram_chat`,
 custom `0017_support_telegram_chat`. Validado no Postgres em memória (17 cenários).
+
+## 2026-10-07 — Teste real do Telegram: webhook velho, túnel e botões do dono (portado do BaseERP)
+
+Mesma mudança do BaseERP (ver `docs/decisoes.md` de lá): o card do Telegram confere
+sozinho se o bot aponta para este sistema (o teste real achou o bot registrado com um
+endereço de exemplo → 404); `next.config.ts` com `allowedDevOrigins` para túneis (pelo
+ngrok o JavaScript não assumia); "Enviar mensagem" (sem pedir a tela), "Encerrar" e
+"Cancelar pedido de tela"; `chat-service.ts` único para o painel e o Telegram; aviso de
+mensagem da pessoa em qualquer página do `/admin`, com o Telegram só quando nenhum admin
+está online. Sem migration nova.
