@@ -12,55 +12,37 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { SearchBox } from "@/components/search-box";
 import { ActionLink } from "@/components/action-link";
-import { ListFilterBar, type FilterField } from "@/components/list-filter-bar";
+import { ListFilterBar } from "@/components/list-filter-bar";
 import { formatCents } from "@/core/money";
 import { formatDate } from "@/core/format";
+import { listPedidos } from "@/modules/pedidos/queries";
 import {
-  listPedidos,
-  PEDIDO_SORT_OPTIONS,
-  PEDIDOS_ABERTOS_STATUSES,
-  type PedidoSort,
-  type PedidoStatusFilter,
-} from "@/modules/pedidos/queries";
+  PEDIDO_DEFAULT_SORT,
+  PEDIDO_FILTERS,
+  PEDIDO_SORT_CHOICES,
+  parsePedidoListParams,
+} from "@/modules/pedidos/list-config";
 import { isOverdue } from "@/modules/pedidos/domain";
-import {
-  PedidoStatusBadge,
-  PEDIDO_STATUS_LABELS,
-} from "@/modules/pedidos/components/pedido-status-badge";
-
-/** Valor especial de `status` na URL (não é um valor real do enum) que
- * representa o conjunto "em aberto" — o mesmo critério que os cards
- * "Pedidos em aberto"/"Saldo a receber" do painel somam. Existe só para o
- * link desses cards ter alguma coisa pra apontar
- * (`/pedidos?status=aberto`); o filtro dropdown abaixo também oferece
- * essa opção, não só os status individuais. */
-const ABERTO = "aberto";
+import { PedidoStatusBadge } from "@/modules/pedidos/components/pedido-status-badge";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { PedidosFacilHome } from "@/modules/pedidos/components/pedidos-facil";
 
 export default async function PedidosPage({ searchParams }: PageProps<"/pedidos">) {
-  const { q, status, sort, previsao } = await searchParams;
-  const search = typeof q === "string" ? q : undefined;
-  const statusParam = typeof status === "string" ? status : undefined;
-  const sortParam = typeof sort === "string" ? (sort as PedidoSort) : undefined;
-  const previsaoAtiva = previsao === "30dias";
+  const sp = await searchParams;
+  const options = parsePedidoListParams(sp);
+  const previsaoAtiva = Boolean(options.vencimentoProximos30Dias);
 
-  const pedidos = await listPedidos({
-    search,
-    sort: sortParam,
-    ...(previsaoAtiva
-      ? { vencimentoProximos30Dias: true }
-      : statusParam === ABERTO
-        ? { statusIn: PEDIDOS_ABERTOS_STATUSES }
-        : { status: statusParam as PedidoStatusFilter | undefined }),
-  });
+  if ((await getCurrentUiMode()) === "facil") {
+    return (
+      <PedidosFacilHome
+        options={options}
+        statusParam={typeof sp.status === "string" ? sp.status : undefined}
+        showAll={sp.ver === "todos"}
+      />
+    );
+  }
 
-  const statusFilter: FilterField = {
-    param: "status",
-    allLabel: "Todos os status",
-    options: [
-      { value: ABERTO, label: "Em aberto" },
-      ...Object.entries(PEDIDO_STATUS_LABELS).map(([value, label]) => ({ value, label })),
-    ],
-  };
+  const pedidos = await listPedidos(options);
 
   return (
     <div className="flex flex-col gap-6">
@@ -89,12 +71,9 @@ export default async function PedidosPage({ searchParams }: PageProps<"/pedidos"
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SearchBox placeholder="Buscar por cliente ou número..." />
           <ListFilterBar
-            filters={[statusFilter]}
-            sortOptions={Object.entries(PEDIDO_SORT_OPTIONS).map(([value, label]) => ({
-              value,
-              label,
-            }))}
-            defaultSort="number_desc"
+            filters={PEDIDO_FILTERS}
+            sortOptions={PEDIDO_SORT_CHOICES}
+            defaultSort={PEDIDO_DEFAULT_SORT}
           />
         </div>
       )}

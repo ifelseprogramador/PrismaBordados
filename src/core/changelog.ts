@@ -24,6 +24,90 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.25.0",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "melhoria",
+        text: "Os modos de tela agora se chamam Clássico (menu ao lado e tabelas) e Simples (botões grandes e passo a passo). No topo de toda tela há atalhos para trocar entre tema claro e escuro e entre os dois modos, sem precisar abrir o Perfil.",
+      },
+      {
+        type: "melhoria",
+        text: "Listas (clientes, catálogo, pedidos e financeiro) agora têm filtros e ordenação nos dois modos de tela: por tipo, situação, pagamento, categoria e período de cadastro, além da busca. Perfil, equipe, backup e privacidade também ganharam o visual do modo Simples.",
+      },
+      {
+        type: "melhoria",
+        text: "O painel inicial do modo Simples agora mostra todas as medições do painel clássico: aguardando aprovação, entradas e saídas do mês, previsão de caixa (a receber, a pagar, saldo previsto), gráfico dos últimos 6 meses, pedidos recentes e clientes devendo.",
+      },
+      {
+        type: "melhoria",
+        text: 'Cadastros rápidos dentro do pedido (modo Simples): cliente e produto novos ganharam "Mais dados (opcional)" com TODOS os campos do cadastro completo. Cliente: pessoa ou empresa, CPF/CNPJ, e-mail, razão social, nome fantasia, inscrições e endereço completo. Produto: modelo, tamanhos e cores aceitos, unidade e dados fiscais (NCM, CFOP, origem, CST). Dá para cadastrar tudo sem sair do pedido; quem não precisa nem vê.',
+      },
+    ],
+  },
+  {
+    version: "0.24.1",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "correcao",
+        text: "Cadastro rápido dentro do pedido (modo Simples): se algo impedir de salvar, o motivo agora aparece na tela, em vez de parecer que salvou.",
+      },
+    ],
+  },
+  {
+    version: "0.24.0",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "novo",
+        text: "Novo pedido (modo Simples): para escolher o cliente é só digitar o nome ou o telefone — a busca continua rápida mesmo com muitos clientes — e, se ele ainda não existe, dá para cadastrar ali mesmo, sem sair do pedido.",
+      },
+      {
+        type: "novo",
+        text: "Novo pedido (modo Simples): os produtos já entram no pedido. Escolha do catálogo, cadastre um produto novo na hora ou lance um produto avulso, com tamanho, cor, quantidade e preço, e o pedido é criado com tudo de uma vez.",
+      },
+    ],
+  },
+  {
+    version: "0.23.0",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "novo",
+        text: 'Modo "Simples" agora cobre o sistema todo: Catálogo, Pedidos, Financeiro e Notas fiscais também ganharam o visual em cards, com as métricas no topo e atalhos que já filtram a lista (aguardando aprovação, em produção, a receber em 30 dias…).',
+      },
+      {
+        type: "novo",
+        text: "Novo pedido, novo produto e registrar entrada/saída viraram passo a passo, uma pergunta por tela. Na ficha do pedido, um botão grande avança a etapa e os itens, o recebimento e a nota fiscal abrem só quando você pede.",
+      },
+      {
+        type: "correcao",
+        text: 'Modo "Simples": o cadastro passo a passo não salva mais antes de você conferir. Agora ele só salva quando você toca em "Salvar", na tela "Está tudo certo?".',
+      },
+    ],
+  },
+  {
+    version: "0.22.0",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "novo",
+        text: 'Modo "Simples" redesenhado: sem menu lateral, só cards grandes com ícones animados. O botão "Todos os módulos", no topo, leva a qualquer módulo de qualquer tela; o Início mostra pedidos em aberto, em produção, saldo a receber, lucro do mês e clientes. Clientes ganhou o visual em cards e o cadastro virou um passo a passo, com uma pergunta por tela e a conferência "Está tudo certo?" no final.',
+      },
+    ],
+  },
+  {
+    version: "0.21.0",
+    date: "2026-10-30",
+    changes: [
+      {
+        type: "novo",
+        text: 'Modo "Simples": em Perfil → Modo de tela, escolha entre o visual clássico de sempre e um visual com botões grandes, desenhos coloridos e animações leves, mais simples para quem não tem costume com sistemas. A escolha fica salva na sua conta, em qualquer aparelho.',
+      },
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026-10-07",
     changes: [

@@ -20,6 +20,8 @@ export {
 } from "./domain";
 export {
   listLancamentos,
+  LANCAMENTO_SORT_OPTIONS,
+  type LancamentoSort,
   getFinanceiroDashboardSummary,
   getEntradasSaidasPorMes,
   getPrevisaoDespesas,

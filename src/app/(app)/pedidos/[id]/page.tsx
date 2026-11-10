@@ -25,9 +25,15 @@ import { EmitirNotaButton } from "./emitir-nota-button";
 import { ShareDocumentButton } from "@/components/share-document-button";
 import { compartilharNota, compartilharPedido } from "./share-actions";
 import { listFiscalNotasByPedido, FiscalNotasList } from "@/modules/fiscal";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { PedidoFacilDetail } from "./pedido-facil-detail";
 
-export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[id]">) {
+export default async function PedidoDetailPage({
+  params,
+  searchParams,
+}: PageProps<"/pedidos/[id]">) {
   const { id } = await params;
+  const { criado, acao } = await searchParams;
   const [pedido, itens, catalogoItens, fiscalNotas] = await Promise.all([
     getPedidoById(id),
     listPedidoItens(id),
@@ -37,6 +43,19 @@ export default async function PedidoDetailPage({ params }: PageProps<"/pedidos/[
 
   if (!pedido) {
     notFound();
+  }
+
+  if ((await getCurrentUiMode()) === "facil") {
+    return (
+      <PedidoFacilDetail
+        pedido={pedido}
+        itens={itens}
+        catalogoItens={catalogoItens}
+        fiscalNotas={fiscalNotas}
+        created={criado === "1"}
+        acao={typeof acao === "string" ? acao : undefined}
+      />
+    );
   }
 
   const temNotaEmitida = fiscalNotas.some((n) => n.status === "emitida");

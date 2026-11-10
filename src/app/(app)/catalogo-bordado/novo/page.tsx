@@ -1,7 +1,24 @@
 import { BackButton } from "@/components/back-button";
 import { CatalogoItemForm } from "@/modules/catalogo-bordado/components/catalogo-item-form";
+import { NewCatalogoItemFacil } from "@/modules/catalogo-bordado/components/new-catalogo-item-facil";
+import { FacilPage } from "@/components/facil/facil-page";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { Package } from "lucide-react";
 
-export default function NovoCatalogoBordadoItemPage() {
+export default async function NovoCatalogoBordadoItemPage() {
+  if ((await getCurrentUiMode()) === "facil") {
+    return (
+      <FacilPage
+        title="Novo produto"
+        icon={Package}
+        backHref="/catalogo-bordado"
+        backLabel="Catálogo"
+      >
+        <NewCatalogoItemFacil />
+      </FacilPage>
+    );
+  }
+
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
       <BackButton />

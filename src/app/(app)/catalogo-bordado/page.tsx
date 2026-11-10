@@ -13,19 +13,26 @@ import { SearchBox } from "@/components/search-box";
 import { ActionLink } from "@/components/action-link";
 import { ListFilterBar } from "@/components/list-filter-bar";
 import { formatCents } from "@/core/money";
+import { listCatalogoBordadoItens } from "@/modules/catalogo-bordado/queries";
 import {
-  listCatalogoBordadoItens,
-  CATALOGO_BORDADO_SORT_OPTIONS,
-  type CatalogoBordadoSort,
-} from "@/modules/catalogo-bordado/queries";
+  CATALOGO_DEFAULT_SORT,
+  CATALOGO_FILTERS,
+  CATALOGO_SORT_CHOICES,
+  parseCatalogoListParams,
+} from "@/modules/catalogo-bordado/list-config";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { CatalogoFacilHome } from "@/modules/catalogo-bordado/components/catalogo-facil";
 
 export default async function CatalogoBordadoPage({
   searchParams,
 }: PageProps<"/catalogo-bordado">) {
-  const { q, sort } = await searchParams;
-  const search = typeof q === "string" ? q : undefined;
-  const sortParam = typeof sort === "string" ? (sort as CatalogoBordadoSort) : undefined;
-  const itens = await listCatalogoBordadoItens({ search, sort: sortParam });
+  const sp = await searchParams;
+  const options = parseCatalogoListParams(sp);
+  if ((await getCurrentUiMode()) === "facil") {
+    return <CatalogoFacilHome options={options} showAll={sp.ver === "todos"} />;
+  }
+
+  const itens = await listCatalogoBordadoItens(options);
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,12 +50,9 @@ export default async function CatalogoBordadoPage({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <SearchBox placeholder="Buscar por tipo de produto..." />
         <ListFilterBar
-          filters={[]}
-          sortOptions={Object.entries(CATALOGO_BORDADO_SORT_OPTIONS).map(([value, label]) => ({
-            value,
-            label,
-          }))}
-          defaultSort="tipo_asc"
+          filters={CATALOGO_FILTERS}
+          sortOptions={CATALOGO_SORT_CHOICES}
+          defaultSort={CATALOGO_DEFAULT_SORT}
         />
       </div>
 

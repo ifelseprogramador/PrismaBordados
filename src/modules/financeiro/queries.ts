@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gt, gte, lte, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, ilike, lte, lt, sql } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
 import { financeiroLancamentos } from "./schema";
 import { calculateLucro } from "./domain";
@@ -24,7 +24,28 @@ export interface ListLancamentosOptions {
    * caixa do painel, pra mostrar exatamente quais lançamentos compõem
    * aquele número). Ignora `month` se os dois forem passados. */
   futuras?: boolean;
+  /** Busca na descrição. */
+  search?: string;
+  categoria?: (typeof financeiroLancamentos.categoria.enumValues)[number];
+  /** Só lançamentos com data a partir desta (filtro "Período"). */
+  since?: Date;
+  sort?: LancamentoSort;
 }
+
+export const LANCAMENTO_SORT_OPTIONS = {
+  date_desc: "Mais recentes primeiro",
+  date_asc: "Mais antigos primeiro",
+  amount_desc: "Valor (maior primeiro)",
+  amount_asc: "Valor (menor primeiro)",
+} as const;
+export type LancamentoSort = keyof typeof LANCAMENTO_SORT_OPTIONS;
+
+const LANCAMENTO_ORDER_BY = {
+  date_desc: [desc(financeiroLancamentos.date), desc(financeiroLancamentos.createdAt)],
+  date_asc: [asc(financeiroLancamentos.date), asc(financeiroLancamentos.createdAt)],
+  amount_desc: [desc(financeiroLancamentos.amountCents), desc(financeiroLancamentos.date)],
+  amount_asc: [asc(financeiroLancamentos.amountCents), desc(financeiroLancamentos.date)],
+} as const;
 
 export async function listLancamentos(options?: ListLancamentosOptions) {
   const { organizationId, withDb } = await requireModule("financeiro");
@@ -46,13 +67,19 @@ export async function listLancamentos(options?: ListLancamentosOptions) {
   if (options?.type && !options?.futuras) {
     conditions.push(eq(financeiroLancamentos.type, options.type));
   }
+  const term = options?.search?.trim();
+  if (term) conditions.push(ilike(financeiroLancamentos.description, `%${term}%`));
+  if (options?.categoria) conditions.push(eq(financeiroLancamentos.categoria, options.categoria));
+  if (options?.since && !options?.futuras && !options?.month) {
+    conditions.push(gte(financeiroLancamentos.date, toDateString(options.since)));
+  }
 
   return withDb((tx) =>
     tx
       .select()
       .from(financeiroLancamentos)
       .where(and(...conditions))
-      .orderBy(desc(financeiroLancamentos.date), desc(financeiroLancamentos.createdAt)),
+      .orderBy(...LANCAMENTO_ORDER_BY[options?.sort ?? "date_desc"]),
   );
 }
 

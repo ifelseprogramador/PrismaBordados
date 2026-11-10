@@ -25,3 +25,4 @@ export * from "@/modules/financeiro/schema";
 export * from "@/modules/fiscal/schema";
 export * from "./schema/sharing";
 export * from "./schema/login-history";
+export * from "./schema/user-preferences";

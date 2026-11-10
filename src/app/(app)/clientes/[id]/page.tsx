@@ -11,13 +11,47 @@ import { getClienteById, updateCliente } from "@/modules/clientes";
 import { ClienteForm } from "@/modules/clientes/components/cliente-form";
 import { ClientePrivacyActions } from "@/modules/clientes/components/cliente-privacy-actions";
 import { exportarDadosCliente, solicitarExclusaoCliente } from "./privacy-actions";
+import { getActiveOrg } from "@/core/auth";
+import { canAccessModule } from "@/core/module-access";
+import { formatCents } from "@/core/money";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+// Composição entre módulos só aqui, na camada de rotas: pelo barrel público.
+import { PEDIDO_STATUS_LABELS, listPedidosByClienteId } from "@/modules/pedidos";
+import { ClienteFacilDetail } from "@/modules/clientes/components/cliente-facil-detail";
 
-export default async function ClienteDetailPage({ params }: PageProps<"/clientes/[id]">) {
+export default async function ClienteDetailPage({
+  params,
+  searchParams,
+}: PageProps<"/clientes/[id]">) {
   const { id } = await params;
+  const { editar } = await searchParams;
   const cliente = await getClienteById(id);
 
   if (!cliente) {
     notFound();
+  }
+
+  if ((await getCurrentUiMode()) === "facil") {
+    // Pedidos do cliente só para quem tem acesso ao módulo (a query exige).
+    const org = await getActiveOrg();
+    const pedidos = canAccessModule(org.moduleAccess, "pedidos")
+      ? (await listPedidosByClienteId(cliente.id)).map((pedido) => ({
+          id: pedido.id,
+          href: `/pedidos/${pedido.id}`,
+          title: `Pedido nº ${pedido.number}`,
+          subtitle: formatCents(pedido.totalCents),
+          badge: PEDIDO_STATUS_LABELS[pedido.status],
+        }))
+      : null;
+    return (
+      <ClienteFacilDetail
+        cliente={cliente}
+        pedidos={pedidos}
+        editing={editar === "1"}
+        onExport={exportarDadosCliente.bind(null, cliente.id)}
+        onExclusion={solicitarExclusaoCliente.bind(null, cliente.id)}
+      />
+    );
   }
 
   return (

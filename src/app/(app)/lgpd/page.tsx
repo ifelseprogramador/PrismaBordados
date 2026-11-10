@@ -1,4 +1,6 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileText, ShieldCheck } from "lucide-react";
+import { ModePage, ModeSection } from "@/components/facil/mode-layout";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
 import { getActiveOrg, requireOwner } from "@/core/auth";
 import { getPrivacySettings } from "@/core/privacy/settings";
 import { PrivacySettingsForm } from "@/core/privacy/components/privacy-settings-form";
@@ -17,42 +19,32 @@ export default async function LgpdSettingsPage() {
     withDb((tx) => getPrivacySettings(tx, organizationId)),
   ]);
 
+  const uiMode = await getCurrentUiMode();
+
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Privacidade (LGPD)</h1>
-        <p className="text-muted-foreground text-sm">
-          Dados da sua organização usados no aviso de privacidade que você entrega aos seus próprios
-          clientes (impresso, no seu site, WhatsApp Business, etc. — o Prisma é um sistema interno,
-          não publica isso automaticamente num site público).
-        </p>
-      </div>
+    <ModePage
+      mode={uiMode}
+      title="Privacidade (LGPD)"
+      subtitle="Dados da sua organização usados no aviso de privacidade que você entrega aos seus próprios clientes (impresso, no seu site, WhatsApp Business, etc. — o Prisma é um sistema interno, não publica isso automaticamente num site público)."
+      icon={ShieldCheck}
+    >
+      <ModeSection
+        mode={uiMode}
+        title="Dados da empresa e do encarregado"
+        description={`${organizationName} — visível só para quem tem acesso a este painel.`}
+        icon={ShieldCheck}
+      >
+        <PrivacySettingsForm settings={settings} />
+      </ModeSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Dados da empresa e do encarregado</CardTitle>
-          <CardDescription>
-            {organizationName} — visível só para quem tem acesso a este painel.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PrivacySettingsForm settings={settings} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Aviso de privacidade gerado</CardTitle>
-          <CardDescription>
-            Preenchido automaticamente com os dados salvos acima. Copie e use no lugar onde seus
-            clientes precisam encontrá-lo — este texto ainda vale a revisão de um advogado antes de
-            publicar.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PrivacyNoticePreview settings={settings} organizationName={organizationName} />
-        </CardContent>
-      </Card>
-    </div>
+      <ModeSection
+        mode={uiMode}
+        title="Aviso de privacidade gerado"
+        description="Preenchido automaticamente com os dados salvos acima. Copie e use no lugar onde seus clientes precisam encontrá-lo — este texto ainda vale a revisão de um advogado antes de publicar."
+        icon={FileText}
+      >
+        <PrivacyNoticePreview settings={settings} organizationName={organizationName} />
+      </ModeSection>
+    </ModePage>
   );
 }

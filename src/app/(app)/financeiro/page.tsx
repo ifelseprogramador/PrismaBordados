@@ -1,6 +1,14 @@
 import { Wallet, X } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActionLink } from "@/components/action-link";
+import { SearchBox } from "@/components/search-box";
+import { ListFilterBar } from "@/components/list-filter-bar";
+import {
+  LANCAMENTO_DEFAULT_SORT,
+  LANCAMENTO_FILTERS,
+  LANCAMENTO_SORT_CHOICES,
+  parseLancamentoListParams,
+} from "@/modules/financeiro/list-config";
 import { formatCents } from "@/core/money";
 import {
   listLancamentos,
@@ -10,14 +18,28 @@ import {
 } from "@/modules/financeiro";
 import { listClientesComSaldoAReceber } from "@/modules/pedidos";
 import { PagamentoClienteForm } from "./pagamento-cliente-form";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { FinanceiroFacil } from "./financeiro-facil";
 
 export default async function FinanceiroPage({ searchParams }: PageProps<"/financeiro">) {
-  const { month, previsao } = await searchParams;
+  const sp = await searchParams;
+  const { month, acao, ver } = sp;
   const mes = typeof month === "string" ? month : undefined;
-  const previsaoAtiva = previsao === "30dias";
+  const options = parseLancamentoListParams(sp);
+  const previsaoAtiva = Boolean(options.futuras);
+
+  if ((await getCurrentUiMode()) === "facil") {
+    return (
+      <FinanceiroFacil
+        acao={typeof acao === "string" ? acao : undefined}
+        options={options}
+        ver={typeof ver === "string" ? ver : undefined}
+      />
+    );
+  }
 
   const [lancamentos, resumo, clientesDevendo] = await Promise.all([
-    listLancamentos(previsaoAtiva ? { futuras: true } : mes ? { month: mes } : undefined),
+    listLancamentos(options),
     getFinanceiroDashboardSummary(),
     listClientesComSaldoAReceber(),
   ]);
@@ -106,7 +128,17 @@ export default async function FinanceiroPage({ searchParams }: PageProps<"/finan
             </CardDescription>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          {!previsaoAtiva && (
+            <div className="flex flex-wrap items-center gap-2">
+              <SearchBox placeholder="Buscar na descrição..." />
+              <ListFilterBar
+                filters={LANCAMENTO_FILTERS}
+                sortOptions={LANCAMENTO_SORT_CHOICES}
+                defaultSort={LANCAMENTO_DEFAULT_SORT}
+              />
+            </div>
+          )}
           <LancamentosTable lancamentos={lancamentos} />
         </CardContent>
       </Card>

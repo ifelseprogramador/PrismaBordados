@@ -1,8 +1,14 @@
 import { Receipt } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFiscalCredentialsSummary, FiscalCredentialsForm } from "@/modules/fiscal";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { FiscalFacil } from "./fiscal-facil";
 
 export default async function FiscalPage() {
+  if ((await getCurrentUiMode()) === "facil") {
+    return <FiscalFacil />;
+  }
+
   const summary = await getFiscalCredentialsSummary();
 
   return (

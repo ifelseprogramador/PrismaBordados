@@ -90,3 +90,45 @@ describe("clienteSchema", () => {
     });
   });
 });
+
+describe("cadastro rápido do modo Fácil: payload mínimo passa na validação", () => {
+  it("cliente só com tipo, nome e telefone", async () => {
+    const { parseClienteFormData } = await import("../validation");
+    const formData = new FormData();
+    formData.set("type", "pf");
+    formData.set("name", "Maria Souza");
+    formData.set("phone", "11 99999-0000");
+    expect(parseClienteFormData(formData).success).toBe(true);
+  });
+});
+
+describe("cadastro rápido com os opcionais (Mais dados)", () => {
+  async function quick(extra: Record<string, string>) {
+    const { parseClienteFormData } = await import("../validation");
+    const formData = new FormData();
+    formData.set("type", "pf");
+    formData.set("name", "Maria Souza");
+    formData.set("phone", "11 99999-0000");
+    formData.set("document", "");
+    formData.set("email", "");
+    for (const [key, value] of Object.entries(extra)) formData.set(key, value);
+    return parseClienteFormData(formData);
+  }
+
+  it("aceita empresa com CNPJ e e-mail válidos, ou tudo vazio", async () => {
+    const full = await quick({ type: "pj", document: "11.222.333/0001-81", email: "a@b.com" });
+    expect(full.success).toBe(true);
+    if (full.success) expect(full.data.type).toBe("pj");
+    expect((await quick({})).success).toBe(true);
+  });
+
+  it("recusa CPF/CNPJ e e-mail inválidos, cada um no seu campo", async () => {
+    const result = await quick({ document: "123.456.789-00", email: "sem-arroba" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const errors = result.error.flatten().fieldErrors;
+      expect(errors.document).toBeTruthy();
+      expect(errors.email).toBeTruthy();
+    }
+  });
+});

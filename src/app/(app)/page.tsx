@@ -14,23 +14,16 @@ import { Badge } from "@/components/ui/badge";
 import { ActionLink } from "@/components/action-link";
 import { Hint } from "@/components/hint";
 import { cn } from "@/lib/utils";
-import { getActiveOrg, getSession } from "@/core/auth";
-import { canAccessModule } from "@/core/module-access";
+import { getActiveOrg, getSession, withOrg } from "@/core/auth";
+import { getEnabledModulesForOrg } from "@/core/module-settings";
+import { filterModulesByAccess } from "@/core/module-access";
+import { getUiMode } from "@/core/profile/ui-mode";
+import { loadPainelData } from "./painel-data";
+import { InicioFacil } from "./inicio-facil";
 import { formatCents } from "@/core/money";
 import { formatDate } from "@/core/format";
-import {
-  getPedidosDashboardSummary,
-  listClientesComSaldoAReceber,
-  getPrevisaoRecebimentos,
-} from "@/modules/pedidos";
-import { listClientes } from "@/modules/clientes/queries";
 import { PedidoStatusBadge } from "@/modules/pedidos/components/pedido-status-badge";
-import {
-  getFinanceiroDashboardSummary,
-  getEntradasSaidasPorMes,
-  getPrevisaoDespesas,
-  EntradasSaidasChart,
-} from "@/modules/financeiro";
+import { EntradasSaidasChart } from "@/modules/financeiro";
 
 /**
  * Dashboard do Prisma: cada módulo expõe `get<Modulo>DashboardSummary()`
@@ -60,14 +53,23 @@ import {
 export default async function DashboardPage() {
   const [org, user] = await Promise.all([getActiveOrg(), getSession()]);
 
-  // Empresa multiusuário: cada pessoa só vê os blocos dos módulos liberados
-  // pelo responsável da conta (ver `core/module-access.ts`). O que não tem
-  // acesso nem é consultado — `requireModule()` nas queries lançaria erro.
-  const temPedidos = canAccessModule(org.moduleAccess, "pedidos");
-  const temClientes = canAccessModule(org.moduleAccess, "clientes");
-  const temFinanceiro = canAccessModule(org.moduleAccess, "financeiro");
+  const { userId, withDb } = await withOrg();
+  const uiMode = await withDb((tx) => getUiMode(tx, userId));
+  if (uiMode === "facil") {
+    // Mesmo filtro do menu: só o que esta pessoa pode abrir.
+    const modules = filterModulesByAccess(
+      await withDb((tx) => getEnabledModulesForOrg(tx, org.organizationId)),
+      org.moduleAccess,
+    );
+    return <InicioFacil org={org} modules={modules} />;
+  }
 
-  const [
+  // Empresa multiusuário: cada pessoa só vê os blocos dos módulos liberados
+  // (ver `loadPainelData`). Os mesmos dados alimentam o layout Fácil.
+  const {
+    temPedidos,
+    temClientes,
+    temFinanceiro,
     pedidosSummary,
     clientes,
     financeiroSummary,
@@ -75,28 +77,14 @@ export default async function DashboardPage() {
     clientesDevendo,
     previsaoRecebimentos,
     previsaoDespesas,
-  ] = await Promise.all([
-    temPedidos ? getPedidosDashboardSummary() : null,
-    temClientes ? listClientes() : null,
-    temFinanceiro ? getFinanceiroDashboardSummary() : null,
-    temFinanceiro ? getEntradasSaidasPorMes(6) : null,
-    temPedidos ? listClientesComSaldoAReceber() : null,
-    temPedidos ? getPrevisaoRecebimentos() : null,
-    temFinanceiro ? getPrevisaoDespesas() : null,
-  ]);
+    totalDevidoGeralCents,
+    saldoPrevisto30DiasCents,
+  } = await loadPainelData(org);
 
   const displayName =
     (user?.user_metadata?.display_name as string | undefined) ?? org.organizationName;
 
   const lucroTone = (financeiroSummary?.lucroCents ?? 0) >= 0 ? "success" : "destructive";
-  const totalDevidoGeralCents = (clientesDevendo ?? []).reduce(
-    (sum, c) => sum + c.totalDevidoCents,
-    0,
-  );
-  const saldoPrevisto30DiasCents =
-    previsaoRecebimentos && previsaoDespesas
-      ? previsaoRecebimentos.proximos30DiasCents - previsaoDespesas.proximos30DiasCents
-      : 0;
   const semNenhumBloco = !temPedidos && !temClientes && !temFinanceiro;
   const saldoPrevistoTone = saldoPrevisto30DiasCents >= 0 ? "success" : "destructive";
 

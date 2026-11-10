@@ -8,7 +8,12 @@
  * importa o outro).
  */
 import { revalidatePath } from "next/cache";
-import { createPedido, getPedidoById, type InsertResult } from "@/modules/pedidos";
+import {
+  createPedido,
+  createPedidoWithItems,
+  getPedidoById,
+  type InsertResult,
+} from "@/modules/pedidos";
 import { createLancamentoRecord } from "@/modules/financeiro";
 
 /**
@@ -22,7 +27,23 @@ export async function criarPedidoComAdiantamento(
   prevState: InsertResult,
   formData: FormData,
 ): Promise<InsertResult> {
-  const result = await createPedido(prevState, formData);
+  return lancarAdiantamento(await createPedido(prevState, formData));
+}
+
+/**
+ * Mesmo que `criarPedidoComAdiantamento`, mas para o assistente do modo Fácil:
+ * o pedido já nasce com os itens (`createPedidoWithItems`), e só depois o
+ * adiantamento vira lançamento — com o total real, a categoria
+ * (adiantamento × saldo recebido) sai certa.
+ */
+export async function criarPedidoComItens(
+  prevState: InsertResult,
+  formData: FormData,
+): Promise<InsertResult> {
+  return lancarAdiantamento(await createPedidoWithItems(prevState, formData));
+}
+
+async function lancarAdiantamento(result: InsertResult): Promise<InsertResult> {
   if (!result.ok || !result.id) {
     return result;
   }

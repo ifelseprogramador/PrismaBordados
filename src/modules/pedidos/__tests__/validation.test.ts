@@ -114,3 +114,13 @@ describe("parseAdiantamentoFormData", () => {
     }
   });
 });
+
+describe("assistente do modo Fácil: payload mínimo do pedido passa na validação", () => {
+  it("só cliente e data do pedido (entrega, entrada e vencimento são opcionais)", async () => {
+    const { parsePedidoCreateFormData } = await import("../validation");
+    const formData = new FormData();
+    formData.set("customerId", "3f2b1c4e-5a6d-4e7f-8a9b-0c1d2e3f4a5b");
+    formData.set("orderDate", "2026-11-09");
+    expect(parsePedidoCreateFormData(formData).success).toBe(true);
+  });
+});

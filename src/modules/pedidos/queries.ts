@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
 import { clientes } from "@/modules/clientes/schema";
 import { pedidoItens, pedidoStatusEnum, pedidos } from "./schema";
@@ -9,6 +9,9 @@ export const PEDIDO_SORT_OPTIONS = {
   number_asc: "Nº (mais antigo primeiro)",
   total_desc: "Total (maior primeiro)",
   total_asc: "Total (menor primeiro)",
+  delivery_asc: "Entrega (mais próxima primeiro)",
+  due_asc: "Vencimento (mais próximo primeiro)",
+  balance_desc: "Saldo (maior primeiro)",
 } as const;
 export type PedidoSort = keyof typeof PEDIDO_SORT_OPTIONS;
 
@@ -17,6 +20,9 @@ const PEDIDO_ORDER_BY = {
   number_asc: asc(pedidos.number),
   total_desc: desc(pedidos.totalCents),
   total_asc: asc(pedidos.totalCents),
+  delivery_asc: sql`${pedidos.deliveryDate} asc nulls last`,
+  due_asc: sql`${pedidos.paymentDueDate} asc nulls last`,
+  balance_desc: desc(pedidos.saldoCents),
 } as const;
 
 export type PedidoStatusFilter = (typeof pedidoStatusEnum.enumValues)[number];
@@ -245,6 +251,10 @@ export async function listPedidos(options?: {
    * compõem aquele número). Ignora `status`/`statusIn` se passado junto.
    */
   vencimentoProximos30Dias?: boolean;
+  /** Situação do pagamento: com saldo em aberto, quitado ou atrasado. */
+  pagamento?: "aberto" | "quitado" | "atrasado";
+  /** Só criados a partir desta data (filtro "Período"). */
+  since?: Date;
   sort?: PedidoSort;
 }) {
   const { organizationId, withDb } = await requireModule("pedidos");
@@ -272,6 +282,19 @@ export async function listPedidos(options?: {
     conditions.push(inArray(pedidos.status, options.statusIn));
   } else if (options?.status) {
     conditions.push(eq(pedidos.status, options.status));
+  }
+
+  if (options?.since) conditions.push(gte(pedidos.createdAt, options.since));
+  if (options?.pagamento === "aberto") {
+    conditions.push(sql`${pedidos.status} != 'cancelado'`, sql`${pedidos.saldoCents} > 0`);
+  } else if (options?.pagamento === "quitado") {
+    conditions.push(sql`${pedidos.status} != 'cancelado'`, sql`${pedidos.saldoCents} <= 0`);
+  } else if (options?.pagamento === "atrasado") {
+    conditions.push(
+      sql`${pedidos.status} != 'cancelado'`,
+      sql`${pedidos.saldoCents} > 0`,
+      sql`${pedidos.paymentDueDate} < current_date`,
+    );
   }
 
   return withDb((tx) =>

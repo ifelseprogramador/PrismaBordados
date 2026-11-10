@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
 import { catalogoBordadoItens } from "./schema";
 
@@ -20,6 +20,8 @@ const CATALOGO_BORDADO_ORDER_BY = {
 
 export async function listCatalogoBordadoItens(options?: {
   search?: string;
+  /** Só cadastrados a partir desta data (filtro "Período"). */
+  since?: Date;
   sort?: CatalogoBordadoSort;
 }) {
   const { organizationId, withDb } = await requireModule("catalogo-bordado");
@@ -33,6 +35,7 @@ export async function listCatalogoBordadoItens(options?: {
         and(
           eq(catalogoBordadoItens.organizationId, organizationId),
           term ? ilike(catalogoBordadoItens.tipoProduto, `%${term}%`) : undefined,
+          options?.since ? gte(catalogoBordadoItens.createdAt, options.since) : undefined,
         ),
       )
       .orderBy(CATALOGO_BORDADO_ORDER_BY[options?.sort ?? "tipo_asc"]),

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, or } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
 import { clientes, clienteEnderecos } from "./schema";
 
@@ -18,7 +18,13 @@ const CLIENTE_ORDER_BY = {
   created_asc: asc(clientes.createdAt),
 } as const;
 
-export async function listClientes(options?: { search?: string; sort?: ClienteSort }) {
+export async function listClientes(options?: {
+  search?: string;
+  type?: "pf" | "pj";
+  /** Só cadastrados a partir desta data (filtro "Período"). */
+  since?: Date;
+  sort?: ClienteSort;
+}) {
   const { organizationId, withDb } = await requireModule("clientes");
   const term = options?.search?.trim();
 
@@ -32,6 +38,8 @@ export async function listClientes(options?: { search?: string; sort?: ClienteSo
           term
             ? or(ilike(clientes.name, `%${term}%`), ilike(clientes.phone, `%${term}%`))
             : undefined,
+          options?.type ? eq(clientes.type, options.type) : undefined,
+          options?.since ? gte(clientes.createdAt, options.since) : undefined,
         ),
       )
       .orderBy(CLIENTE_ORDER_BY[options?.sort ?? "name_asc"]),

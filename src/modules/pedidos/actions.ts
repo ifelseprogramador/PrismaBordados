@@ -19,7 +19,9 @@ import {
   parsePedidoCreateFormData,
   parsePedidoHeaderFormData,
   parsePedidoItemFormData,
+  parsePedidoItemsPayload,
   type PedidoCreateInput,
+  type PedidoItemInput,
 } from "./validation";
 
 export interface InsertResult extends ActionResult {
@@ -71,7 +73,10 @@ async function recalculateOrderTotal(tx: Database, pedidoId: string) {
   return totalCents;
 }
 
-export async function createPedidoRecord(data: PedidoCreateInput): Promise<InsertResult> {
+export async function createPedidoRecord(
+  data: PedidoCreateInput,
+  items: PedidoItemInput[] = [],
+): Promise<InsertResult> {
   const { organizationId, userId, log, withDb } = await requireModule("pedidos");
   log.info("pedidos.criar");
 
@@ -102,6 +107,24 @@ export async function createPedidoRecord(data: PedidoCreateInput): Promise<Inser
       toStatus: "orcamento",
     });
 
+    // Itens do assistente do modo Fácil: entram na MESMA transação do pedido
+    // (ou o pedido inteiro existe, ou nada) e o total é recalculado no servidor.
+    if (items.length > 0) {
+      await tx.insert(pedidoItens).values(
+        items.map((item) => ({
+          pedidoId: pedido.id,
+          catalogoItemId: item.catalogoItemId,
+          produto: item.produto,
+          modelo: item.modelo,
+          tamanho: item.tamanho,
+          cor: item.cor,
+          quantity: String(item.quantity),
+          unitPriceCents: item.unitPriceCents,
+        })),
+      );
+      await recalculateOrderTotal(tx, pedido.id);
+    }
+
     log.info("pedidos.criar.sucesso", { pedidoId: pedido.id, number: lastNumber });
     return { ok: true, id: pedido.id };
   });
@@ -121,6 +144,47 @@ export async function createPedido(
   }
 
   return createPedidoRecord(parsed.data);
+}
+
+/**
+ * Novo pedido do modo Fácil: cabeçalho + itens de uma vez (campo
+ * `itemsJson`). Mesmas regras de `createPedido`; o que muda é levar os itens
+ * junto na criação e conferir que a entrada não passa do total deles.
+ */
+export async function createPedidoWithItems(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<InsertResult> {
+  const { log } = await requireModule("pedidos");
+  const parsed = parsePedidoCreateFormData(formData);
+  if (!parsed.success) {
+    log.warn("pedidos.criar.validacao_falhou", {
+      fields: Object.keys(parsed.error.flatten().fieldErrors),
+    });
+    return { ok: false, errors: parsed.error.flatten().fieldErrors };
+  }
+  const items = parsePedidoItemsPayload(formData.get("itemsJson"));
+  if (!items.success) {
+    return { ok: false, errors: { itemsJson: [items.error] } };
+  }
+
+  const total = calculateOrderTotal(
+    items.data.map((item) => ({
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents,
+    })),
+  );
+  if (
+    items.data.length > 0 &&
+    isAdiantamentoAboveTotal(total, parsed.data.adiantamentoCents ?? 0)
+  ) {
+    return {
+      ok: false,
+      errors: { adiantamento: ["A entrada não pode ser maior que o total dos itens."] },
+    };
+  }
+
+  return createPedidoRecord(parsed.data, items.data);
 }
 
 export async function updatePedidoHeader(

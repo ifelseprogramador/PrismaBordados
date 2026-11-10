@@ -95,6 +95,48 @@ export const pedidoItemSchema = z.object({
 
 export type PedidoItemInput = z.infer<typeof pedidoItemSchema>;
 
+/**
+ * Itens enviados de uma vez pelo assistente do modo Fácil (campo `itemsJson`,
+ * ver `components/facil/facil-search.tsx#serializeLines`). Cada item passa
+ * pela MESMA regra do item avulso (`pedidoItemSchema`); `ref` é o id do item
+ * de catálogo (vazio no produto avulso, que gera NFS-e e não NF-e).
+ */
+export function parsePedidoItemsPayload(raw: FormDataEntryValue | null) {
+  const text = typeof raw === "string" ? raw.trim() : "";
+  if (!text) return { success: true as const, data: [] as PedidoItemInput[] };
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { success: false as const, error: "Não consegui ler os itens. Tente de novo." };
+  }
+  if (!Array.isArray(json) || json.length > 100) {
+    return { success: false as const, error: "Itens inválidos (máximo de 100 por pedido)." };
+  }
+  const items: PedidoItemInput[] = [];
+  for (const entry of json) {
+    const row = (entry ?? {}) as Record<string, unknown>;
+    const parsed = pedidoItemSchema.safeParse({
+      catalogoItemId: row.ref ?? "",
+      produto: row.label,
+      modelo: row.modelo,
+      tamanho: row.tamanho,
+      cor: row.cor,
+      quantity: row.quantity,
+      unitPriceCents: row.unitPriceCents,
+    });
+    if (!parsed.success) {
+      const name = typeof row.label === "string" && row.label ? `“${row.label}”` : "um item";
+      return {
+        success: false as const,
+        error: `Confira ${name}: ${parsed.error.issues[0]?.message ?? "dados inválidos"}`,
+      };
+    }
+    items.push(parsed.data);
+  }
+  return { success: true as const, data: items };
+}
+
 export function parsePedidoItemFormData(formData: FormData) {
   const unitPriceCents = parseReaisInput(String(formData.get("unitPrice") ?? ""));
   return pedidoItemSchema.safeParse({

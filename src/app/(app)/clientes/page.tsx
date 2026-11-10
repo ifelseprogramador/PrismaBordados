@@ -13,13 +13,24 @@ import { SearchBox } from "@/components/search-box";
 import { SpreadsheetMenu } from "@/components/spreadsheet-menu";
 import { ActionLink } from "@/components/action-link";
 import { ListFilterBar } from "@/components/list-filter-bar";
-import { listClientes, CLIENTE_SORT_OPTIONS, type ClienteSort } from "@/modules/clientes/queries";
+import { listClientes } from "@/modules/clientes/queries";
+import {
+  CLIENTE_DEFAULT_SORT,
+  CLIENTE_FILTERS,
+  CLIENTE_SORT_CHOICES,
+  parseClienteListParams,
+} from "@/modules/clientes/list-config";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { ClientesFacilHome } from "@/modules/clientes/components/clientes-facil";
 
 export default async function ClientesPage({ searchParams }: PageProps<"/clientes">) {
-  const { q, sort } = await searchParams;
-  const search = typeof q === "string" ? q : undefined;
-  const sortParam = typeof sort === "string" ? (sort as ClienteSort) : undefined;
-  const clientes = await listClientes({ search, sort: sortParam });
+  const sp = await searchParams;
+  const options = parseClienteListParams(sp);
+  if ((await getCurrentUiMode()) === "facil") {
+    return <ClientesFacilHome options={options} showAll={sp.ver === "todos"} />;
+  }
+
+  const clientes = await listClientes(options);
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,12 +51,9 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
       <div className="flex flex-wrap items-center justify-between gap-2">
         <SearchBox placeholder="Buscar por nome ou telefone..." />
         <ListFilterBar
-          filters={[]}
-          sortOptions={Object.entries(CLIENTE_SORT_OPTIONS).map(([value, label]) => ({
-            value,
-            label,
-          }))}
-          defaultSort="name_asc"
+          filters={CLIENTE_FILTERS}
+          sortOptions={CLIENTE_SORT_CHOICES}
+          defaultSort={CLIENTE_DEFAULT_SORT}
         />
       </div>
 

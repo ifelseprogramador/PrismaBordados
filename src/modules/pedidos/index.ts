@@ -36,6 +36,7 @@ export {
 export {
   createPedido,
   createPedidoRecord,
+  createPedidoWithItems,
   updatePedidoHeader,
   addPedidoItem,
   removePedidoItem,

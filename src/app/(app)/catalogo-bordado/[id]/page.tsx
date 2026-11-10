@@ -8,15 +8,23 @@ import {
   updateCatalogoBordadoItem,
 } from "@/modules/catalogo-bordado";
 import { CatalogoItemForm } from "@/modules/catalogo-bordado/components/catalogo-item-form";
+import { CatalogoItemFacilDetail } from "@/modules/catalogo-bordado/components/catalogo-item-facil-detail";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
 
 export default async function CatalogoBordadoDetailPage({
   params,
+  searchParams,
 }: PageProps<"/catalogo-bordado/[id]">) {
   const { id } = await params;
+  const { editar } = await searchParams;
   const item = await getCatalogoBordadoItemById(id);
 
   if (!item) {
     notFound();
+  }
+
+  if ((await getCurrentUiMode()) === "facil") {
+    return <CatalogoItemFacilDetail item={item} editing={editar === "1"} />;
   }
 
   return (
