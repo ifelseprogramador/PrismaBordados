@@ -14,9 +14,9 @@
  * `organization_module_settings`, editável livremente pelo admin,
  * independente do preset original).
  *
- * Candidato a promoção para o BaseERP quando um segundo vertical
- * precisar do mesmo mecanismo (ver docs/decisoes.md) — hoje vive aqui no
- * Prisma porque o BaseERP não tem nenhum módulo de negócio para presetar.
+ * No BaseERP o registro nasce VAZIO (não há módulo de negócio para presetar):
+ * cada vertical registra seus presets em `core/load-modules.ts`, com
+ * `registerBusinessTypePreset(...)`.
  */
 
 export interface BusinessTypePreset {
